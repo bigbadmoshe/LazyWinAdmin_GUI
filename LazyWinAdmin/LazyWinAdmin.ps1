@@ -823,7 +823,7 @@ function Get-Processor {
 		}
 		if (Test-Host -ComputerName $ComputerName -TCPPort 135) {
 			try {
-				$CPUS = Get-WmiObject Win32_Processor -ComputerName $ComputerName -ea STOP
+				$CPUS = Get-CimInstance Win32_Processor -ComputerName $ComputerName -ea STOP
 				foreach ($CPU in $CPUs) {
 					$myobj = @{
 						ComputerName = $ComputerName
