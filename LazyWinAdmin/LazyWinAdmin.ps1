@@ -22,386 +22,361 @@ function Main {
 	Param ([String]$Commandline)
 	#Note: This function starts the application
 	#Note: $Commandline contains the complete argument string passed to the packager
-	#Note: $Args contains the parsed arguments passed to the packager (Type: System.Array) 
+	#Note: $Args contains the parsed arguments passed to the packager (Type: System.Array)
 	#Note: To get the script directory in the Packager use: Split-Path $hostinvocation.MyCommand.path
 	#Note: To get the console output in the Packager (Windows Mode) use: $ConsoleOutput (Type: System.Collections.ArrayList)
 	#TODO: Initialize and add Function calls to forms
-	
-	if(Call-MainForm_pff -eq "OK")
-	{
-		
+
+	if (Call-MainForm_pff -eq "OK") {
+
 	}
-	
+
 	$script:ExitCode = 0 #Set the exit code for the Packager
 }
 
-
 #region Call-Global_ps1
-	#--------------------------------------------
-	# Declare Global Variables and Functions here
-	#--------------------------------------------
-	
-	#region Get-ComputerTxtBox
-	function Get-ComputerTxtBox
-	{	$global:ComputerName = $textbox_computername.Text}
-	#endregion
-	
-	#region Add-RichTextBox
-	# Function - Add Text to RichTextBox
-	function Add-RichTextBox{
-		[CmdletBinding()]
-		param ($text)
-		#$richtextbox_output.Text += "`tCOMPUTERNAME: $ComputerName`n"
-		$richtextbox_output.Text += "$text"
-		$richtextbox_output.Text += "`n# # # # # # # # # #`n"
+#--------------------------------------------
+# Declare Global Variables and Functions here
+#--------------------------------------------
+
+#region Get-ComputerTxtBox
+function Get-ComputerTxtBox
+{	$global:ComputerName = $textbox_computername.Text }
+#endregion
+
+#region Add-RichTextBox
+# Function - Add Text to RichTextBox
+function Add-RichTextBox {
+	[CmdletBinding()]
+	param ($text)
+	#$richtextbox_output.Text += "`tCOMPUTERNAME: $ComputerName`n"
+	$richtextbox_output.Text += "$text"
+	$richtextbox_output.Text += "`n# # # # # # # # # #`n"
+}
+#Set-Alias artb Add-RichTextBox -Description "Add content to the RichTextBox"
+#endregion
+
+#region Get-DateSortable
+function Get-datesortable {
+	$global:datesortable = Get-Date -Format "yyyyMMdd-HH':'mm':'ss"
+	return $global:datesortable
+}#endregion Get-DateSortable
+
+#region Add-Logs
+function Add-Logs {
+	[CmdletBinding()]
+	param ($text)
+	Get-datesortable
+	$richtextbox_logs.Text += "[$global:datesortable] - $text`r"
+	Set-Alias alogs Add-Logs -Description "Add content to the RichTextBoxLogs"
+	Set-Alias Add-Log Add-Logs -Description "Add content to the RichTextBoxLogs"
+}#endregion Add Logs
+
+#region Clear-RichTextBox
+# Function - Clear the RichTextBox
+function Clear-RichTextBox { $richtextbox_output.Text = "" }
+
+#endregion
+
+#region Clear-Logs
+# Function - Clear the Logs
+function Clear-Logs { $richtextbox_logs.Text = "" }
+
+#endregion
+
+#region Add-ClipBoard
+function Add-ClipBoard ($text) {
+	Add-Type -AssemblyName System.Windows.Forms
+	$tb = New-Object System.Windows.Forms.TextBox
+	$tb.Multiline = $true
+	$tb.Text = $text
+	$tb.SelectAll()
+	$tb.Copy()
+}
+#endregion
+
+#region Test-TcpPort
+function Test-TcpPort ($ComputerName, [int]$port = 80) {
+	$socket = New-Object Net.Sockets.TcpClient
+	$socket.Connect($ComputerName, $port)
+	if ($socket.Connected) {
+		$status = "Open"
+		$socket.Close()
 	}
-	#Set-Alias artb Add-RichTextBox -Description "Add content to the RichTextBox"
-	#endregion
-	
-	#region Get-DateSortable
-	function Get-datesortable {
-		$global:datesortable = Get-Date -Format "yyyyMMdd-HH':'mm':'ss"
-		return $global:datesortable
-	}#endregion Get-DateSortable
-	
-	#region Add-Logs
-	function Add-Logs{
-		[CmdletBinding()]
-		param ($text)
-		Get-datesortable
-		$richtextbox_logs.Text += "[$global:datesortable] - $text`r"
-		Set-Alias alogs Add-Logs -Description "Add content to the RichTextBoxLogs"
-		Set-Alias Add-Log Add-Logs -Description "Add content to the RichTextBoxLogs"
-	}#endregion Add Logs
-	
-	#region Clear-RichTextBox
-	# Function - Clear the RichTextBox
-	function Clear-RichTextBox {$richtextbox_output.Text = ""}
-	
-	#endregion
-	
-	#region Clear-Logs
-	# Function - Clear the Logs
-	function Clear-Logs {$richtextbox_logs.Text = ""}
-	
-	#endregion
-	
-	#region Add-ClipBoard
-	function Add-ClipBoard ($text){
-			Add-Type -AssemblyName System.Windows.Forms
-		    $tb = New-Object System.Windows.Forms.TextBox
-		    $tb.Multiline = $true
-		    $tb.Text = $text
-		    $tb.SelectAll()
-		    $tb.Copy()	
-		}
-	#endregion
-	
-	#region Test-TcpPort
-	function Test-TcpPort ($ComputerName,[int]$port = 80) {
-			$socket = new-object Net.Sockets.TcpClient
-			$socket.Connect($ComputerName, $port)
-			if ($socket.Connected) {
-			$status = "Open"
-			$socket.Close()
-			}
-			else {
-			$status = "Closed / Filtered"
-			}
-			$socket = $null
-			Add-RichTextBox "ComputerName:$ComputerName`nPort:$port`nStatus:$status"
-	 	}
-	#endregion
-	
-	#region Set-RDPEnable
-	# Function RDP Enable
-	function Set-RDPEnable ($ComputerName = '.') {
-		    $regKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ComputerName)
-		    $regKey = $regKey.OpenSubKey("SYSTEM\\CurrentControlSet\\Control\\Terminal Server" ,$True)
-		    $regkey.SetValue("fDenyTSConnections",0)
-		    $regKey.flush()
-		    $regKey.Close()
-			}
-	#endregion
-	
-	#region Set-RDPDisable
-	# Function RDP Disable
-	function Set-RDPDisable ($ComputerName = '.') {
-		    $regKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ComputerName)
-		    $regKey = $regKey.OpenSubKey("SYSTEM\\CurrentControlSet\\Control\\Terminal Server" ,$True)
-		    $regkey.SetValue("fDenyTSConnections",1)
-		    $regKey.flush()
-		    $regKey.Close()
-			}
-	#endregion
-	
-	#region Start-Proc
-	function Start-Proc  {
-		param (
-			[string]$exe = $(Throw "An executable must be specified"),
-			[string]$arguments,
-			[switch]$hidden,
-			[switch]$waitforexit
-		)
-		# Build Startinfo and set options according to parameters
-		$startinfo = new-object System.Diagnostics.ProcessStartInfo 
-		$startinfo.FileName = $exe
-		$startinfo.Arguments = $arguments
-		if ($hidden){
-			$startinfo.WindowStyle = "Hidden"
-			$startinfo.CreateNoWindow = $TRUE
-		}
-		$process = [System.Diagnostics.Process]::Start($startinfo)
-		if ($waitforexit) {$process.WaitForExit()}
+	else {
+		$status = "Closed / Filtered"
 	}
-	#endregion
-	
-	#region Get-Uptime
-	function Get-Uptime{
-		param($ComputerName = "localhost")
-		$wmi = Get-WmiObject -class Win32_OperatingSystem -computer $ComputerName
-		$LBTime = $wmi.ConvertToDateTime($wmi.Lastbootuptime)
-		[TimeSpan]$uptime = New-TimeSpan $LBTime $(get-date)
-		Write-Output "$($uptime.days) Days $($uptime.hours) Hours $($uptime.minutes) Minutes $($uptime.seconds) Seconds"
+	$socket = $null
+	Add-RichTextBox "ComputerName:$ComputerName`nPort:$port`nStatus:$status"
+}
+#endregion
+
+#region Set-RDPEnable
+# Function RDP Enable
+function Set-RDPEnable ($ComputerName = '.') {
+	$regKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ComputerName)
+	$regKey = $regKey.OpenSubKey("SYSTEM\\CurrentControlSet\\Control\\Terminal Server" , $True)
+	$regkey.SetValue("fDenyTSConnections", 0)
+	$regKey.flush()
+	$regKey.Close()
+}
+#endregion
+
+#region Set-RDPDisable
+# Function RDP Disable
+function Set-RDPDisable ($ComputerName = '.') {
+	$regKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ComputerName)
+	$regKey = $regKey.OpenSubKey("SYSTEM\\CurrentControlSet\\Control\\Terminal Server" , $True)
+	$regkey.SetValue("fDenyTSConnections", 1)
+	$regKey.flush()
+	$regKey.Close()
+}
+#endregion
+
+#region Start-Proc
+function Start-Proc {
+	param (
+		[string]$exe = $(Throw "An executable must be specified"),
+		[string]$arguments,
+		[switch]$hidden,
+		[switch]$waitforexit
+	)
+	# Build Startinfo and set options according to parameters
+	$startinfo = New-Object System.Diagnostics.ProcessStartInfo
+	$startinfo.FileName = $exe
+	$startinfo.Arguments = $arguments
+	if ($hidden) {
+		$startinfo.WindowStyle = "Hidden"
+		$startinfo.CreateNoWindow = $TRUE
 	}
-	#endregion Get-Uptime
-	
-	#region Invoke-GPUpdate
-	function Invoke-GPUpdate(){
-		param($ComputerName = ".")
-		$targetOSInfo = Get-WmiObject -ComputerName $ComputerName -Class Win32_OperatingSystem -ErrorAction SilentlyContinue
-		
-		If (
-			$targetOSInfo -eq $null){return "Unable to connect to $ComputerName"}
-		Else{
-			If ($targetOSInfo.version -ge 5.1){Invoke-WmiMethod -ComputerName $ComputerName -Path win32_process -Name create -ArgumentList "gpupdate /target:Computer /force /wait:0"}
-			Else{Invoke-WmiMethod -ComputerName $ComputerName -Path win32_process -Name create –ArgumentList "secedit /refreshpolicy machine_policy /enforce"}
-		}
+	$process = [System.Diagnostics.Process]::Start($startinfo)
+	if ($waitforexit) { $process.WaitForExit() }
+}
+#endregion
+
+#region Get-Uptime
+function Get-Uptime {
+	param($ComputerName = "localhost")
+	$wmi = Get-WmiObject -Class Win32_OperatingSystem -computer $ComputerName
+	$LBTime = $wmi.ConvertToDateTime($wmi.Lastbootuptime)
+	[TimeSpan]$uptime = New-TimeSpan $LBTime $(Get-Date)
+	Write-Output "$($uptime.days) Days $($uptime.hours) Hours $($uptime.minutes) Minutes $($uptime.seconds) Seconds"
+}
+#endregion Get-Uptime
+
+#region Invoke-GPUpdate
+function Invoke-GPUpdate() {
+	param($ComputerName = ".")
+	$targetOSInfo = Get-WmiObject -ComputerName $ComputerName -Class Win32_OperatingSystem -ErrorAction SilentlyContinue
+
+	If (
+		$targetOSInfo -eq $null) { return "Unable to connect to $ComputerName" }
+	Else {
+		If ($targetOSInfo.version -ge 5.1) { Invoke-WmiMethod -ComputerName $ComputerName -Path win32_process -Name create -ArgumentList "gpupdate /target:Computer /force /wait:0" }
+		Else { Invoke-WmiMethod -ComputerName $ComputerName -Path win32_process -Name create –ArgumentList "secedit /refreshpolicy machine_policy /enforce" }
 	}
-	#endregion
-	
-	#region Get-Scriptdirectory
-	#Sample function that provides the location of the script
-	function Get-Scriptdirectory
-	{ 
-		if($hostinvocation -ne $null)
-		{
-			Split-Path $hostinvocation.MyCommand.path
-		}
-		else
-		{
-			$invocation=(get-variable MyInvocation -Scope 1).Value
-			Split-Path -Parent $invocation.MyCommand.Definition
-		}
+}
+#endregion
+
+#region Get-Scriptdirectory
+#Sample function that provides the location of the script
+function Get-Scriptdirectory {
+	if ($hostinvocation -ne $null) {
+		Split-Path $hostinvocation.MyCommand.path
 	}
-	#Sample variable that provides the location of the script
-	[string]$ScriptDirectory = Get-Scriptdirectory
-	#endregion
-	
-	### BSONPOSH / Boe Prox http://bsonposh.com/
-	
-	#region Get-PageFile
-	
-	function Get-PageFile
-	{
-	
-	    <#
-	        .Synopsis 
+	else {
+		$invocation = (Get-Variable MyInvocation -Scope 1).Value
+		Split-Path -Parent $invocation.MyCommand.Definition
+	}
+}
+#Sample variable that provides the location of the script
+[string]$ScriptDirectory = Get-Scriptdirectory
+#endregion
+
+### BSONPOSH / Boe Prox http://bsonposh.com/
+
+#region Get-PageFile
+
+function Get-PageFile {
+
+	<#
+	        .Synopsis
 	            Gets the Page File info for specified host
-	            
+
 	        .Description
 	            Gets the Page File info for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the Paging File info from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-PageFile
 	            Description
 	            -----------
 	            Gets Page File from local machine
-	    
+
 	        .Example
 	            Get-PageFile -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets Page File from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-PageFile
 	            Description
 	            -----------
 	            Gets Page File for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSObject
-	            
+
 	        .Notes
-	            NAME:      Get-PageFile 
+	            NAME:      Get-PageFile
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	        Write-Verbose " [Get-PageFile] :: Process Start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Connection $ComputerName -Count 1 -Quiet)
-	        {
-	            try
-	            {
-	                Write-Verbose " [Get-PageFile] :: Collecting Paging File Info"
-	                $PagingFiles = Get-WmiObject Win32_PageFile -ComputerName $ComputerName -ErrorAction SilentlyContinue
-	                if($PagingFiles)
-	                {
-	                    foreach($PageFile in $PagingFiles)
-	                    {
-	                        $myobj = @{
-	                            ComputerName = $ComputerName
-	                            Name         = $PageFile.Name
-	                            SizeGB       = [int]($PageFile.FileSize / 1GB)
-	                            InitialSize  = $PageFile.InitialSize
-	                            MaximumSize  = $PageFile.MaximumSize
-	                        }
-	                        
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.Computer.PageFile')
-	                        $obj
-	                    }
-	                }
-	                else
-	                {
-	                    $Pagefile = Get-ChildItem \\$ComputerName\c$\pagefile.sys -Force -ErrorAction SilentlyContinue 
-	                    if($PageFile)
-	                    {
-	                        $myobj = @{
-	                            ComputerName = $ComputerName
-	                            Name         = $PageFile.Name
-	                            SizeGB       = [int]($Pagefile.Length / 1GB)
-	                            InitialSize  = "System Managed"
-	                            MaximumSize  = "System Managed"
-	                        }
-	                        
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.Computer.PageFile')
-	                        $obj
-	                    }
-	                    else
-	                    {
-	                        Write-Host "[Get-PageFile] :: No Paging File setting found. Most likely set to system managed or you do not have access."
-	                    }
-	                }
-	            }
-	            catch
-	            {
-	                 Write-Verbose " [Get-PageFile] :: [$ComputerName] Failed with Error: $($Error[0])" 
-	            }
-	        }
-	    }        
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+		Write-Verbose " [Get-PageFile] :: Process Start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Connection $ComputerName -Count 1 -Quiet) {
+			try {
+				Write-Verbose " [Get-PageFile] :: Collecting Paging File Info"
+				$PagingFiles = Get-WmiObject Win32_PageFile -ComputerName $ComputerName -ErrorAction SilentlyContinue
+				if ($PagingFiles) {
+					foreach ($PageFile in $PagingFiles) {
+						$myobj = @{
+							ComputerName = $ComputerName
+							Name         = $PageFile.Name
+							SizeGB       = [int]($PageFile.FileSize / 1GB)
+							InitialSize  = $PageFile.InitialSize
+							MaximumSize  = $PageFile.MaximumSize
+						}
+
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.Computer.PageFile')
+						$obj
+					}
+				}
+				else {
+					$Pagefile = Get-ChildItem \\$ComputerName\c$\pagefile.sys -Force -ErrorAction SilentlyContinue
+					if ($PageFile) {
+						$myobj = @{
+							ComputerName = $ComputerName
+							Name         = $PageFile.Name
+							SizeGB       = [int]($Pagefile.Length / 1GB)
+							InitialSize  = "System Managed"
+							MaximumSize  = "System Managed"
+						}
+
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.Computer.PageFile')
+						$obj
+					}
+					else {
+						Write-Host "[Get-PageFile] :: No Paging File setting found. Most likely set to system managed or you do not have access."
+					}
+				}
+			}
+			catch {
+				Write-Verbose " [Get-PageFile] :: [$ComputerName] Failed with Error: $($Error[0])"
+			}
+		}
 	}
-	
-	#endregion 
-	
-	#region Get-PageFileSetting
-	
-	function Get-PageFileSetting
-	{
-	
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Get-PageFileSetting
+
+function Get-PageFileSetting {
+
+	<#
+	        .Synopsis
 	            Gets the Page File setting info for specified host
-	            
+
 	        .Description
 	            Gets the Page File setting info for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the Page File setting info from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-PageFileSetting
 	            Description
 	            -----------
 	            Gets Page File setting from local machine
-	    
+
 	        .Example
 	            Get-PageFileSetting -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets Page File setting from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-PageFileSetting
 	            Description
 	            -----------
 	            Gets Page File setting for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSObject
-	            
+
 	        .Notes
-	            NAME:      Get-PageFileSetting 
+	            NAME:      Get-PageFileSetting
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	        Write-Verbose " [Get-PageFileSetting] :: Process Start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                Write-Verbose " [Get-PageFileSetting] :: Collecting Paging File Info"
-	                $PagingFiles = Get-WmiObject Win32_PageFileSetting -ComputerName $ComputerName -EnableAllPrivileges
-	                if($PagingFiles)
-	                {
-	                    foreach($PageFile in $PagingFiles)
-	                    {
-	                        $PageFile 
-	                    }
-	                }
-	                else
-	                {
-	                   Return "No Paging File setting found. Most likely set to system managed"
-	                }
-	            }
-	            catch
-	            {
-	                 Write-Verbose " [Get-PageFileSetting] :: [$ComputerName] Failed with Error: $($Error[0])" 
-	            }
-	        }
-	    }        
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+		Write-Verbose " [Get-PageFileSetting] :: Process Start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			try {
+				Write-Verbose " [Get-PageFileSetting] :: Collecting Paging File Info"
+				$PagingFiles = Get-WmiObject Win32_PageFileSetting -ComputerName $ComputerName -EnableAllPrivileges
+				if ($PagingFiles) {
+					foreach ($PageFile in $PagingFiles) {
+						$PageFile
+					}
+				}
+				else {
+					Return "No Paging File setting found. Most likely set to system managed"
+				}
+			}
+			catch {
+				Write-Verbose " [Get-PageFileSetting] :: [$ComputerName] Failed with Error: $($Error[0])"
+			}
+		}
 	}
-	
-	#endregion 
-	
-	#region Get-HostsFile
-	Function Get-HostsFile {
+}
+
+#endregion
+
+#region Get-HostsFile
+Function Get-HostsFile {
 	<#
 	.SYNOPSIS
 	   Retrieves the contents of a hosts file on a specified system
@@ -413,439 +388,419 @@ function Main {
 	    Name: Get-HostsFile
 	    Author: Boe Prox
 	    DateCreated: 15Mar2011
-	.LINK  
-	
+	.LINK
+
 	http://boeprox.wordpress.com
-	
+
 	.EXAMPLE
-	    Get-HostsFile "server1" 
-	
+	    Get-HostsFile "server1"
+
 	Description
 	-----------
-	Retrieves the contents of the hosts file on 'server1' 
-	
+	Retrieves the contents of the hosts file on 'server1'
+
 	#>
 	[cmdletbinding(
-	    DefaultParameterSetName = 'Default',
-	    ConfirmImpact = 'low'
+		DefaultParameterSetName = 'Default',
+		ConfirmImpact = 'low'
 	)]
-	    Param(
-	        [Parameter(
-	            ValueFromPipeline = $True)]
-	            [string[]]$Computer                                                
-	
-	        )
+	Param(
+		[Parameter(
+			ValueFromPipeline = $True)]
+		[string[]]$Computer
+
+	)
 	Begin {
-	    $psBoundParameters.GetEnumerator() | % {
-	        Write-Verbose "Parameter: $_"
-	        }
-	        If (!$PSBoundParameters['computer']) {
-	        Write-Verbose "No computer name given, using local computername"
-	        [string[]]$computer = $Env:Computername
-	        }
-	    $report = @()
-	    }
-	Process {
-	    Write-Verbose "Starting process of computers"
-	    ForEach ($c in $computer) {
-	        Write-Verbose "Testing connection of $c"
-	        If (Test-Connection -ComputerName $c -Quiet -Count 1) {
-	            Write-Verbose "Validating path to hosts file"
-	            If (Test-Path "\\$c\C$\Windows\system32\drivers\etc\hosts") {
-	                Switch -regex -file ("\\$c\c$\Windows\system32\drivers\etc\hosts") {
-	                    "^\d\w+" {
-	                        Write-Verbose "Adding IPV4 information to collection"
-	                        $temp = "" | Select Computer, IPV4, IPV6, Hostname, Notes
-	                        $new = $_.Split("") | ? {$_ -ne ""}
-	                        $temp.Computer = $c
-	                        $temp.IPV4 = $new[0]
-	                        $temp.HostName = $new[1]
-	                        If ($new[2] -eq $Null) {
-	                            $temp.Notes = "NA"
-	                            }
-	                        Else {
-	                            $temp.Notes = $new[2]
-	                            }
-	                        $report += $temp
-	                        }
-	                    Default {
-	                        If (!("\s+" -match $_ -OR $_.StartsWith("#"))) {
-	                            Write-Verbose "Adding IPV6 information to collection"
-	                            $temp = "" | Select Computer, IPV4, IPV6, Hostname, Notes
-	                            $new = $_.Split("") | ? {$_ -ne ""}
-	                            $temp.Computer = $c
-	                            $temp.IPV6 = $new[0]
-	                            $temp.HostName = $new[1]
-	                            If ($new[2] -eq $Null) {
-	                                $temp.Notes = "NA"
-	                                }
-	                            Else {
-	                                $temp.Notes = $new[2]
-	                                }
-	                            $report += $temp
-	                            }
-	                        }
-	                    }
-	                }#EndIF
-	            ElseIf (Test-Path "\\$c\C$\WinNT\system32\drivers\etc\hosts") {
-	                Switch -regex -file ("\\$c\c$\WinNT\system32\drivers\etc\hosts") {
-	                    "^#\w+" {
-	                        }
-	                    "^\d\w+" {
-	                        Write-Verbose "Adding IPV4 information to collection"
-	                        $temp = "" | Select Computer, IPV4,IPV6, Hostname, Notes
-	                        $new = $_.Split("") | ? {$_ -ne ""}
-	                        $temp.Computer = $c
-	                        $temp.IPV4 = $new[0]
-	                        $temp.HostName = $new[1]
-	                        If ($new[2] -eq $Null) {
-	                            $temp.Notes = "NA"
-	                            }
-	                        Else {
-	                            $temp.Notes = $new[2]
-	                            }
-	                        $report += $temp
-	                        }
-	                    Default {
-	                        If (!("\s+" -match $_ -OR $_.StartsWith("#"))) {
-	                            Write-Verbose "Adding IPV6 information to collection"
-	                            $temp = "" | Select Computer, IPV4, IPV6, Hostname, Notes
-	                            $new = $_.Split("") | ? {$_ -ne ""}
-	                            $temp.Computer = $c
-	                            $temp.IPV6 = $new[0]
-	                            $temp.HostName = $new[1]
-	                            If ($new[2] -eq $Null) {
-	                                $temp.Notes = "NA"
-	                                }
-	                            Else {
-	                                $temp.Notes = $new[2]
-	                                }
-	                            $report += $temp
-	                            }
-	                        }
-	                    }
-	                }#End ElseIf
-	            Else {
-	                Write-Verbose "No host file found"
-	                $temp = "" | Select Computer, IPV4, IPV6, Hostname, Notes
-	                $temp.Computer = $c
-	                $temp.IPV4 = "NA"
-	                $temp.IPV6 = "NA"
-	                $temp.Hostname = "NA"
-	                $temp.Notes = "Unable to locate host file"
-	                $report += $temp
-	                }#End Else
-	            }
-	        Else {
-	            Write-Verbose "No computer found"
-	            $temp = "" | Select Computer, IPV4, IPV6, Hostname, Notes
-	            $temp.Computer = $c
-	            $temp.IPV4 = "NA"
-	            $temp.IPV6 = "NA"
-	            $temp.Hostname = "NA"
-	            $temp.Notes = "Unable to locate Computer"
-	            $report += $temp
-	            }
-	        }
-	    }
-	End {
-	    Write-Output $report
-	    }
+		$psBoundParameters.GetEnumerator() | ForEach-Object {
+			Write-Verbose "Parameter: $_"
+		}
+		If (!$PSBoundParameters['computer']) {
+			Write-Verbose "No computer name given, using local computername"
+			[string[]]$computer = $Env:Computername
+		}
+		$report = @()
 	}
-	#endregion Get-HostFileContent
-	
-	#region Get-DiskPartition 
-	
-	function Get-DiskPartition
-	{
-	        
-	    <#
-	        .Synopsis 
+	Process {
+		Write-Verbose "Starting process of computers"
+		ForEach ($c in $computer) {
+			Write-Verbose "Testing connection of $c"
+			If (Test-Connection -ComputerName $c -Quiet -Count 1) {
+				Write-Verbose "Validating path to hosts file"
+				If (Test-Path "\\$c\C$\Windows\system32\drivers\etc\hosts") {
+					Switch -regex -file ("\\$c\c$\Windows\system32\drivers\etc\hosts") {
+						"^\d\w+" {
+							Write-Verbose "Adding IPV4 information to collection"
+							$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+							$new = $_.Split("") | Where-Object { $_ -ne "" }
+							$temp.Computer = $c
+							$temp.IPV4 = $new[0]
+							$temp.HostName = $new[1]
+							If ($new[2] -eq $Null) {
+								$temp.Notes = "NA"
+							}
+							Else {
+								$temp.Notes = $new[2]
+							}
+							$report += $temp
+						}
+						Default {
+							If (!("\s+" -match $_ -OR $_.StartsWith("#"))) {
+								Write-Verbose "Adding IPV6 information to collection"
+								$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+								$new = $_.Split("") | Where-Object { $_ -ne "" }
+								$temp.Computer = $c
+								$temp.IPV6 = $new[0]
+								$temp.HostName = $new[1]
+								If ($new[2] -eq $Null) {
+									$temp.Notes = "NA"
+								}
+								Else {
+									$temp.Notes = $new[2]
+								}
+								$report += $temp
+							}
+						}
+					}
+				}#EndIF
+				ElseIf (Test-Path "\\$c\C$\WinNT\system32\drivers\etc\hosts") {
+					Switch -regex -file ("\\$c\c$\WinNT\system32\drivers\etc\hosts") {
+						"^#\w+" {
+						}
+						"^\d\w+" {
+							Write-Verbose "Adding IPV4 information to collection"
+							$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+							$new = $_.Split("") | Where-Object { $_ -ne "" }
+							$temp.Computer = $c
+							$temp.IPV4 = $new[0]
+							$temp.HostName = $new[1]
+							If ($new[2] -eq $Null) {
+								$temp.Notes = "NA"
+							}
+							Else {
+								$temp.Notes = $new[2]
+							}
+							$report += $temp
+						}
+						Default {
+							If (!("\s+" -match $_ -OR $_.StartsWith("#"))) {
+								Write-Verbose "Adding IPV6 information to collection"
+								$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+								$new = $_.Split("") | Where-Object { $_ -ne "" }
+								$temp.Computer = $c
+								$temp.IPV6 = $new[0]
+								$temp.HostName = $new[1]
+								If ($new[2] -eq $Null) {
+									$temp.Notes = "NA"
+								}
+								Else {
+									$temp.Notes = $new[2]
+								}
+								$report += $temp
+							}
+						}
+					}
+				}#End ElseIf
+				Else {
+					Write-Verbose "No host file found"
+					$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+					$temp.Computer = $c
+					$temp.IPV4 = "NA"
+					$temp.IPV6 = "NA"
+					$temp.Hostname = "NA"
+					$temp.Notes = "Unable to locate host file"
+					$report += $temp
+				}#End Else
+			}
+			Else {
+				Write-Verbose "No computer found"
+				$temp = "" | Select-Object Computer, IPV4, IPV6, Hostname, Notes
+				$temp.Computer = $c
+				$temp.IPV4 = "NA"
+				$temp.IPV6 = "NA"
+				$temp.Hostname = "NA"
+				$temp.Notes = "Unable to locate Computer"
+				$report += $temp
+			}
+		}
+	}
+	End {
+		Write-Output $report
+	}
+}
+#endregion Get-HostFileContent
+
+#region Get-DiskPartition
+
+function Get-DiskPartition {
+
+	<#
+	        .Synopsis
 	            Gets the disk partition info for specified host
-	            
+
 	        .Description
 	            Gets the disk partition info for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the disk partition info from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-DiskPartition
 	            Description
 	            -----------
 	            Gets Disk Partitions from local machine
-	    
+
 	        .Example
 	            Get-DiskPartition -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets Disk Partitions from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-DiskPartition
 	            Description
 	            -----------
 	            Gets Disk Partitions for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSObject
-	            
+
 	        .Notes
-	        NAME:      Get-DiskPartition 
+	        NAME:      Get-DiskPartition
 	        AUTHOR:    YetiCentral\bshell
 	        Website:   www.bsonposh.com
 	        #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	        Write-Verbose " [Get-DiskPartition] :: Process Start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                Write-Verbose " [Get-DiskPartition] :: Getting Partition info use WMI"
-	                $Partitions = Get-WmiObject Win32_DiskPartition -ComputerName $ComputerName
-	                Write-Verbose " [Get-DiskPartition] :: Found $($Partitions.Count) partitions" 
-	                foreach($Partition in $Partitions)
-	                {
-	                    Write-Verbose " [Get-DiskPartition] :: Creating Hash Table"
-	                    $myobj = @{}
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding BlockSize        - $($Partition.BlockSize)"
-	                    $myobj.BlockSize = $Partition.BlockSize
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding BootPartition    - $($Partition.BootPartition)"
-	                    $myobj.BootPartition = $Partition.BootPartition
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding ComputerName     - $ComputerName"
-	                    $myobj.ComputerName = $ComputerName
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding Description      - $($Partition.name)"
-	                    $myobj.Description = $Partition.Name
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding PrimaryPartition - $($Partition.PrimaryPartition)"
-	                    $myobj.PrimaryPartition = $Partition.PrimaryPartition
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding Index            - $($Partition.Index)"
-	                    $myobj.Index = $Partition.Index
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding SizeMB           - $($Partition.Size)"
-	                    $myobj.SizeMB = ($Partition.Size/1mb).ToString("n2",$Culture)
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Adding Type             - $($Partition.Type)"
-	                    $myobj.Type = $Partition.Type
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Setting IsAligned "
-	                    $myobj.IsAligned = $Partition.StartingOffset%64kb -eq 0
-	                    
-	                    Write-Verbose " [Get-DiskPartition] :: Creating Object"
-	                    $obj = New-Object PSObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.DiskPartition')
-	                    $obj
-	                }
-	            }
-	            catch
-	            {
-	                Write-Verbose " [Get-DiskPartition] :: [$ComputerName] Failed with Error: $($Error[0])" 
-	            }
-	        }
-	        Write-Verbose " [Get-DiskPartition] :: Process End"
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+		Write-Verbose " [Get-DiskPartition] :: Process Start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			try {
+				Write-Verbose " [Get-DiskPartition] :: Getting Partition info use WMI"
+				$Partitions = Get-WmiObject Win32_DiskPartition -ComputerName $ComputerName
+				Write-Verbose " [Get-DiskPartition] :: Found $($Partitions.Count) partitions"
+				foreach ($Partition in $Partitions) {
+					Write-Verbose " [Get-DiskPartition] :: Creating Hash Table"
+					$myobj = @{}
+
+					Write-Verbose " [Get-DiskPartition] :: Adding BlockSize        - $($Partition.BlockSize)"
+					$myobj.BlockSize = $Partition.BlockSize
+
+					Write-Verbose " [Get-DiskPartition] :: Adding BootPartition    - $($Partition.BootPartition)"
+					$myobj.BootPartition = $Partition.BootPartition
+
+					Write-Verbose " [Get-DiskPartition] :: Adding ComputerName     - $ComputerName"
+					$myobj.ComputerName = $ComputerName
+
+					Write-Verbose " [Get-DiskPartition] :: Adding Description      - $($Partition.name)"
+					$myobj.Description = $Partition.Name
+
+					Write-Verbose " [Get-DiskPartition] :: Adding PrimaryPartition - $($Partition.PrimaryPartition)"
+					$myobj.PrimaryPartition = $Partition.PrimaryPartition
+
+					Write-Verbose " [Get-DiskPartition] :: Adding Index            - $($Partition.Index)"
+					$myobj.Index = $Partition.Index
+
+					Write-Verbose " [Get-DiskPartition] :: Adding SizeMB           - $($Partition.Size)"
+					$myobj.SizeMB = ($Partition.Size / 1mb).ToString("n2", $Culture)
+
+					Write-Verbose " [Get-DiskPartition] :: Adding Type             - $($Partition.Type)"
+					$myobj.Type = $Partition.Type
+
+					Write-Verbose " [Get-DiskPartition] :: Setting IsAligned "
+					$myobj.IsAligned = $Partition.StartingOffset % 64kb -eq 0
+
+					Write-Verbose " [Get-DiskPartition] :: Creating Object"
+					$obj = New-Object PSObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.DiskPartition')
+					$obj
+				}
+			}
+			catch {
+				Write-Verbose " [Get-DiskPartition] :: [$ComputerName] Failed with Error: $($Error[0])"
+			}
+		}
+		Write-Verbose " [Get-DiskPartition] :: Process End"
 	}
-	    
-	#endregion 
-	
-	#region Get-DiskSpace
-	
-	function Get-DiskSpace 
-	{
-	        
-	    <#
-	        .Synopsis  
+}
+
+#endregion
+
+#region Get-DiskSpace
+
+function Get-DiskSpace {
+
+	<#
+	        .Synopsis
 	            Gets the disk space for specified host
-	            
+
 	        .Description
 	            Gets the disk space for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the diskspace from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-Diskspace
 	            # Gets diskspace from local machine
-	    
+
 	        .Example
 	            Get-Diskspace -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets diskspace from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-Diskspace
 	            Description
 	            -----------
 	            Gets diskspace for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .Notes
-	            NAME:      Get-DiskSpace 
+	            NAME:      Get-DiskSpace
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Begin 
-	    {
-	        Write-Verbose " [Get-DiskSpace] :: Start Begin"
-	        $Culture = New-Object System.Globalization.CultureInfo("en-US") 
-	        Write-Verbose " [Get-DiskSpace] :: End Begin"
-	    }
-	    
-	    Process 
-	    {
-	        Write-Verbose " [Get-DiskSpace] :: Start Process"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	            
-	        }
-	        Write-Verbose " [Get-DiskSpace] :: `$ComputerName - $ComputerName"
-	        Write-Verbose " [Get-DiskSpace] :: Testing Connectivity"
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            Write-Verbose " [Get-DiskSpace] :: Connectivity Passed"
-	            try
-	            {
-	                Write-Verbose " [Get-DiskSpace] :: Getting Operating System Version using - Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -Property Version"
-	                $OSVersionInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -Property Version -ea STOP
-	                Write-Verbose " [Get-DiskSpace] :: Getting Operating System returned $($OSVersionInfo.Version)"
-	                if($OSVersionInfo.Version -gt 5.2)
-	                {
-	                    Write-Verbose " [Get-DiskSpace] :: Version high enough to use Win32_Volume"
-	                    Write-Verbose " [Get-DiskSpace] :: Calling Get-WmiObject -class Win32_Volume -ComputerName $ComputerName -Property `"Name`",`"FreeSpace`",`"Capacity`" -filter `"DriveType=3`""
-	                    $DiskInfos = Get-WmiObject -class Win32_Volume                          `
-	                                            -ComputerName $ComputerName                  `
-	                                            -Property "Name","FreeSpace","Capacity"      `
-	                                            -filter "DriveType=3" -ea STOP
-	                    Write-Verbose " [Get-DiskSpace] :: Win32_Volume returned $($DiskInfos.count) disks"
-	                    foreach($DiskInfo in $DiskInfos)
-	                    {
-	                        $myobj = @{}
-	                        $myobj.ComputerName = $ComputerName
-	                        $myobj.OSVersion    = $OSVersionInfo.Version
-	                        $Myobj.Drive        = $DiskInfo.Name
-	                        $Myobj.CapacityGB   = [float]($DiskInfo.Capacity/1GB).ToString("n2",$Culture)
-	                        $Myobj.FreeSpaceGB  = [float]($DiskInfo.FreeSpace/1GB).ToString("n2",$Culture)
-	                        $Myobj.PercentFree  = "{0:P2}" -f ($DiskInfo.FreeSpace / $DiskInfo.Capacity)
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.DiskSpace')
-	                        $obj
-	                    }
-	                }
-	                else
-	                {
-	                    Write-Verbose " [Get-DiskSpace] :: Version not high enough to use Win32_Volume using Win32_LogicalDisk"
-	                    $DiskInfos = Get-WmiObject -class Win32_LogicalDisk                       `
-	                                            -ComputerName $ComputerName                       `
-	                                            -Property SystemName, DeviceID, FreeSpace, Size   `
-	                                            -filter "DriveType=3" -ea STOP
-	                    foreach($DiskInfo in $DiskInfos)
-	                    {
-	                        $myobj = @{}
-	                        $myobj.ComputerName = $ComputerName
-	                        $myobj.OSVersion    = $OSVersionInfo.Version
-	                        $Myobj.Drive       = "{0}\" -f $DiskInfo.DeviceID
-	                        $Myobj.CapacityGB   = [float]($DiskInfo.Capacity/1GB).ToString("n2",$Culture)
-	                        $Myobj.FreeSpaceGB  = [float]($DiskInfo.FreeSpace/1GB).ToString("n2",$Culture)
-	                        $Myobj.PercentFree  = "{0:P2}" -f ($DiskInfo.FreeSpace / $DiskInfo.Capacity)
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.DiskSpace')
-	                        $obj
-	                    }
-	                }
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	        Write-Verbose " [Get-DiskSpace] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Begin {
+		Write-Verbose " [Get-DiskSpace] :: Start Begin"
+		$Culture = New-Object System.Globalization.CultureInfo("en-US")
+		Write-Verbose " [Get-DiskSpace] :: End Begin"
 	}
-	    
-	#endregion 
-	
-	#region Get-Processor
-	
-	function Get-Processor
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+		Write-Verbose " [Get-DiskSpace] :: Start Process"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+
+		}
+		Write-Verbose " [Get-DiskSpace] :: `$ComputerName - $ComputerName"
+		Write-Verbose " [Get-DiskSpace] :: Testing Connectivity"
+		if (Test-Host $ComputerName -TCPPort 135) {
+			Write-Verbose " [Get-DiskSpace] :: Connectivity Passed"
+			try {
+				Write-Verbose " [Get-DiskSpace] :: Getting Operating System Version using - Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -Property Version"
+				$OSVersionInfo = Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -Property Version -ea STOP
+				Write-Verbose " [Get-DiskSpace] :: Getting Operating System returned $($OSVersionInfo.Version)"
+				if ($OSVersionInfo.Version -gt 5.2) {
+					Write-Verbose " [Get-DiskSpace] :: Version high enough to use Win32_Volume"
+					Write-Verbose " [Get-DiskSpace] :: Calling Get-WmiObject -class Win32_Volume -ComputerName $ComputerName -Property `"Name`",`"FreeSpace`",`"Capacity`" -filter `"DriveType=3`""
+					$DiskInfos = Get-WmiObject -Class Win32_Volume                          `
+						-ComputerName $ComputerName                  `
+						-Property "Name", "FreeSpace", "Capacity"      `
+						-Filter "DriveType=3" -ea STOP
+					Write-Verbose " [Get-DiskSpace] :: Win32_Volume returned $($DiskInfos.count) disks"
+					foreach ($DiskInfo in $DiskInfos) {
+						$myobj = @{}
+						$myobj.ComputerName = $ComputerName
+						$myobj.OSVersion = $OSVersionInfo.Version
+						$Myobj.Drive = $DiskInfo.Name
+						$Myobj.CapacityGB = [float]($DiskInfo.Capacity / 1GB).ToString("n2", $Culture)
+						$Myobj.FreeSpaceGB = [float]($DiskInfo.FreeSpace / 1GB).ToString("n2", $Culture)
+						$Myobj.PercentFree = "{0:P2}" -f ($DiskInfo.FreeSpace / $DiskInfo.Capacity)
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.DiskSpace')
+						$obj
+					}
+				}
+				else {
+					Write-Verbose " [Get-DiskSpace] :: Version not high enough to use Win32_Volume using Win32_LogicalDisk"
+					$DiskInfos = Get-WmiObject -Class Win32_LogicalDisk                       `
+						-ComputerName $ComputerName                       `
+						-Property SystemName, DeviceID, FreeSpace, Size   `
+						-Filter "DriveType=3" -ea STOP
+					foreach ($DiskInfo in $DiskInfos) {
+						$myobj = @{}
+						$myobj.ComputerName = $ComputerName
+						$myobj.OSVersion = $OSVersionInfo.Version
+						$Myobj.Drive = "{0}\" -f $DiskInfo.DeviceID
+						$Myobj.CapacityGB = [float]($DiskInfo.Capacity / 1GB).ToString("n2", $Culture)
+						$Myobj.FreeSpaceGB = [float]($DiskInfo.FreeSpace / 1GB).ToString("n2", $Culture)
+						$Myobj.PercentFree = "{0:P2}" -f ($DiskInfo.FreeSpace / $DiskInfo.Capacity)
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.DiskSpace')
+						$obj
+					}
+				}
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+		Write-Verbose " [Get-DiskSpace] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Get-Processor
+
+function Get-Processor {
+
+	<#
+	        .Synopsis
 	            Gets the Computer Processor info for specified host.
-	            
+
 	        .Description
 	            Gets the Computer Processor info for specified host.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the Computer Processor info from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-Processor
 	            Description
 	            -----------
 	            Gets Computer Processor info from local machine
-	    
+
 	        .Example
 	            Get-Processor -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets Computer Processor info from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-Processor
 	            Description
 	            -----------
 	            Gets Computer Processor info for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Get-Processor
 	            AUTHOR:    bsonposh
@@ -853,298 +808,274 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	    
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host -ComputerName $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                $CPUS = Get-WmiObject Win32_Processor -ComputerName $ComputerName -ea STOP
-	                foreach($CPU in $CPUs)
-	                {
-	                    $myobj = @{
-	                        ComputerName = $ComputerName
-	                        Name         = $CPU.Name
-	                        Manufacturer = $CPU.Manufacturer
-	                        Speed        = $CPU.MaxClockSpeed
-	                        Cores        = $CPU.NumberOfCores
-	                        L2Cache      = $CPU.L2CacheSize
-	                        Stepping     = $CPU.Stepping
-	                    }
-	                }
-	                $obj = New-Object PSObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.Computer.Processor')
-	                $obj
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host -ComputerName $ComputerName -TCPPort 135) {
+			try {
+				$CPUS = Get-WmiObject Win32_Processor -ComputerName $ComputerName -ea STOP
+				foreach ($CPU in $CPUs) {
+					$myobj = @{
+						ComputerName = $ComputerName
+						Name         = $CPU.Name
+						Manufacturer = $CPU.Manufacturer
+						Speed        = $CPU.MaxClockSpeed
+						Cores        = $CPU.NumberOfCores
+						L2Cache      = $CPU.L2CacheSize
+						Stepping     = $CPU.Stepping
+					}
+				}
+				$obj = New-Object PSObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.Computer.Processor')
+				$obj
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+
 	}
-	    
-	#endregion
-	
-	#region Get-IP 
-	
-	function Get-IP
-	{
-	        
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Get-IP
+
+function Get-IP {
+
+	<#
+	        .Synopsis
 	            Get the IP of the specified host.
-	            
+
 	        .Description
 	            Get the IP of the specified host.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get IP (Default localhost.)
-	                
+
 	        .Example
 	            Get-IP
 	            Description
 	            -----------
 	            Get IP information the localhost
-	            
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	        
+
 	        .Notes
 	            NAME:      Get-IP
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    Process
-	    {
-	        $NICs = Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled='$True'" -ComputerName $ComputerName
-	        foreach($Nic in $NICs)
-	        {
-	            $myobj = @{
-	                Name          = $Nic.Description
-	                MacAddress    = $Nic.MACAddress
-	                IP4           = $Nic.IPAddress | where{$_ -match "\d+\.\d+\.\d+\.\d+"}
-	                IP6           = $Nic.IPAddress | where{$_ -match "\:\:"}
-	                IP4Subnet     = $Nic.IPSubnet  | where{$_ -match "\d+\.\d+\.\d+\.\d+"}
-	                DefaultGWY    = $Nic.DefaultIPGateway | Select -First 1
-	                DNSServer     = $Nic.DNSServerSearchOrder
-	                WINSPrimary   = $Nic.WINSPrimaryServer
-	                WINSSecondary = $Nic.WINSSecondaryServer
-	            }
-	            $obj = New-Object PSObject -Property $myobj
-	            $obj.PSTypeNames.Clear()
-	            $obj.PSTypeNames.Add('BSonPosh.IPInfo')
-	            $obj
-	        }
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+	Process {
+		$NICs = Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled='$True'" -ComputerName $ComputerName
+		foreach ($Nic in $NICs) {
+			$myobj = @{
+				Name          = $Nic.Description
+				MacAddress    = $Nic.MACAddress
+				IP4           = $Nic.IPAddress | Where-Object { $_ -match "\d+\.\d+\.\d+\.\d+" }
+				IP6           = $Nic.IPAddress | Where-Object { $_ -match "\:\:" }
+				IP4Subnet     = $Nic.IPSubnet | Where-Object { $_ -match "\d+\.\d+\.\d+\.\d+" }
+				DefaultGWY    = $Nic.DefaultIPGateway | Select-Object -First 1
+				DNSServer     = $Nic.DNSServerSearchOrder
+				WINSPrimary   = $Nic.WINSPrimaryServer
+				WINSSecondary = $Nic.WINSSecondaryServer
+			}
+			$obj = New-Object PSObject -Property $myobj
+			$obj.PSTypeNames.Clear()
+			$obj.PSTypeNames.Add('BSonPosh.IPInfo')
+			$obj
+		}
 	}
-	    
-	#endregion 
-	
-	#region Get-InstalledSoftware
-	
-	function Get-InstalledSoftware
-	{
-	
-	    <#
+}
+
+#endregion
+
+#region Get-InstalledSoftware
+
+function Get-InstalledSoftware {
+
+	<#
 	        .Synopsis
 	            Gets the installed software using Uninstall regkey for specified host.
-	
+
 	        .Description
 	            Gets the installed software using Uninstall regkey for specified host.
-	
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the installed software from (Default is localhost.)
-	
+
 	        .Example
 	            Get-InstalledSoftware
 	            Description
 	            -----------
 	            Gets installed software from local machine
-	
+
 	        .Example
 	            Get-InstalledSoftware -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets installed software from MyServer
-	
+
 	        .Example
 	            $Servers | Get-InstalledSoftware
 	            Description
 	            -----------
 	            Gets installed software for each machine in the pipeline
-	
+
 	        .OUTPUTS
 	            PSCustomObject
-	
+
 	        .Notes
 	            NAME:      Get-InstalledSoftware
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    begin 
-	    {
-	
-	            Write-Verbose " [Get-InstalledPrograms] :: Start Begin"
-	            $Culture = New-Object System.Globalization.CultureInfo("en-US")
-	            Write-Verbose " [Get-InstalledPrograms] :: End Begin"
-	
-	    }
-	    process 
-	    {
-	
-	        Write-Verbose " [Get-InstalledPrograms] :: Start Process"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	
-	        }
-	        Write-Verbose " [Get-InstalledPrograms] :: `$ComputerName - $ComputerName"
-	        Write-Verbose " [Get-InstalledPrograms] :: Testing Connectivity"
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                $RegKey = Get-RegistryKey -Path "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -ComputerName $ComputerName
-	                foreach($key in $RegKey.GetSubKeyNames())   
-	                {   
-	                    $SubKey = $RegKey.OpenSubKey($key)
-	                    if($SubKey.GetValue("DisplayName"))
-	                    {
-	                        $myobj = @{
-	                            Name    = $SubKey.GetValue("DisplayName")   
-	                            Version = $SubKey.GetValue("DisplayVersion")   
-	                            Vendor  = $SubKey.GetValue("Publisher")
-	                        }
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.SoftwareInfo')
-	                        $obj
-	                    }
-	                }   
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	        Write-Verbose " [Get-InstalledPrograms] :: End Process"
-	
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+	begin {
+
+		Write-Verbose " [Get-InstalledPrograms] :: Start Begin"
+		$Culture = New-Object System.Globalization.CultureInfo("en-US")
+		Write-Verbose " [Get-InstalledPrograms] :: End Begin"
+
 	}
-	
-	#endregion 
-	
-	#region Get-RegistryHive 
-	
-	function Get-RegistryHive 
-	{
-	    param($HiveName)
-	    Switch -regex ($HiveName)
-	    {
-	        "^(HKCR|ClassesRoot|HKEY_CLASSES_ROOT)$"               {[Microsoft.Win32.RegistryHive]"ClassesRoot";continue}
-	        "^(HKCU|CurrentUser|HKEY_CURRENTt_USER)$"              {[Microsoft.Win32.RegistryHive]"CurrentUser";continue}
-	        "^(HKLM|LocalMachine|HKEY_LOCAL_MACHINE)$"          {[Microsoft.Win32.RegistryHive]"LocalMachine";continue} 
-	        "^(HKU|Users|HKEY_USERS)$"                          {[Microsoft.Win32.RegistryHive]"Users";continue}
-	        "^(HKCC|CurrentConfig|HKEY_CURRENT_CONFIG)$"          {[Microsoft.Win32.RegistryHive]"CurrentConfig";continue}
-	        "^(HKPD|PerformanceData|HKEY_PERFORMANCE_DATA)$"    {[Microsoft.Win32.RegistryHive]"PerformanceData";continue}
-	        Default                                                {1;continue}
-	    }
+	process {
+
+		Write-Verbose " [Get-InstalledPrograms] :: Start Process"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+
+		}
+		Write-Verbose " [Get-InstalledPrograms] :: `$ComputerName - $ComputerName"
+		Write-Verbose " [Get-InstalledPrograms] :: Testing Connectivity"
+		if (Test-Host $ComputerName -TCPPort 135) {
+			try {
+				$RegKey = Get-RegistryKey -Path "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -ComputerName $ComputerName
+				foreach ($key in $RegKey.GetSubKeyNames()) {
+					$SubKey = $RegKey.OpenSubKey($key)
+					if ($SubKey.GetValue("DisplayName")) {
+						$myobj = @{
+							Name    = $SubKey.GetValue("DisplayName")
+							Version = $SubKey.GetValue("DisplayVersion")
+							Vendor  = $SubKey.GetValue("Publisher")
+						}
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.SoftwareInfo')
+						$obj
+					}
+				}
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+		Write-Verbose " [Get-InstalledPrograms] :: End Process"
+
 	}
-	    
-	#endregion 
-	
-	#region Get-RegistryKey 
-	
-	function Get-RegistryKey 
-	{
-	        
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Get-RegistryHive
+
+function Get-RegistryHive {
+	param($HiveName)
+	Switch -regex ($HiveName) {
+		"^(HKCR|ClassesRoot|HKEY_CLASSES_ROOT)$" { [Microsoft.Win32.RegistryHive]"ClassesRoot"; continue }
+		"^(HKCU|CurrentUser|HKEY_CURRENTt_USER)$" { [Microsoft.Win32.RegistryHive]"CurrentUser"; continue }
+		"^(HKLM|LocalMachine|HKEY_LOCAL_MACHINE)$" { [Microsoft.Win32.RegistryHive]"LocalMachine"; continue }
+		"^(HKU|Users|HKEY_USERS)$" { [Microsoft.Win32.RegistryHive]"Users"; continue }
+		"^(HKCC|CurrentConfig|HKEY_CURRENT_CONFIG)$" { [Microsoft.Win32.RegistryHive]"CurrentConfig"; continue }
+		"^(HKPD|PerformanceData|HKEY_PERFORMANCE_DATA)$" { [Microsoft.Win32.RegistryHive]"PerformanceData"; continue }
+		Default { 1; continue }
+	}
+}
+
+#endregion
+
+#region Get-RegistryKey
+
+function Get-RegistryKey {
+
+	<#
+	        .Synopsis
 	            Gets the registry key provide by Path.
-	            
+
 	        .Description
 	            Gets the registry key provide by Path.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to get the registry key from.
-	            
-	        .Parameter Recurse 
+
+	        .Parameter Recurse
 	            Recursively returns registry keys starting from the Path.
-	        
+
 	        .Parameter ReadWrite
 	            Returns the Registry key in Read Write mode.
-	            
+
 	        .Example
 	            Get-registrykey HKLM\Software\Adobe
 	            Description
 	            -----------
 	            Returns the Registry key for HKLM\Software\Adobe
-	            
+
 	        .Example
 	            Get-registrykey HKLM\Software\Adobe -ComputerName MyServer1
 	            Description
 	            -----------
 	            Returns the Registry key for HKLM\Software\Adobe on MyServer1
-	        
+
 	        .Example
 	            Get-registrykey HKLM\Software\Adobe -Recurse
 	            Description
 	            -----------
 	            Returns the Registry key for HKLM\Software\Adobe and all child keys
-	                    
+
 	        .OUTPUTS
 	            Microsoft.Win32.RegistryKey
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryKey
 	            Remove-RegistryKey
@@ -1156,692 +1087,636 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	        
-	    [Cmdletbinding()]
-	    Param(
-	    
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Alias("Server")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName,
-	        
-	        [Parameter()]
-	        [switch]$Recurse,
-	        
-	        [Alias("RW")]
-	        [Parameter()]
-	        [switch]$ReadWrite
-	        
-	    )
-	    
-	    Begin 
-	    {
-	        
-	        Write-Verbose " [Get-RegistryKey] :: Start Begin"
-	        Write-Verbose " [Get-RegistryKey] :: `$Path = $Path"
-	        Write-Verbose " [Get-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
-	        $PathParts = $Path -split "\\|/",0,"RegexMatch"
-	        $Hive = $PathParts[0]
-	        $KeyPath = $PathParts[1..$PathParts.count] -join "\"
-	        Write-Verbose " [Get-RegistryKey] :: `$Hive = $Hive"
-	        Write-Verbose " [Get-RegistryKey] :: `$KeyPath = $KeyPath"
-	        
-	        Write-Verbose " [Get-RegistryKey] :: End Begin"
-	        
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Get-RegistryKey] :: Start Process"
-	        Write-Verbose " [Get-RegistryKey] :: `$ComputerName = $ComputerName"
-	        
-	        $RegHive = Get-RegistryHive $hive
-	        
-	        if($RegHive -eq 1)
-	        {
-	            Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
-	        }
-	        else
-	        {
-	            Write-Verbose " [Get-RegistryKey] :: `$RegHive = $RegHive"
-	            
-	            $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	            Write-Verbose " [Get-RegistryKey] :: `$BaseKey = $BaseKey"
-	    
-	            if($ReadWrite)
-	            {
-	                try
-	                {
-	                    $Key = $BaseKey.OpenSubKey($KeyPath,$true)
-	                    $Key = $Key | Add-Member -Name "ComputerName" -MemberType NoteProperty -Value $ComputerName -PassThru
-	                    $Key = $Key | Add-Member -Name "Hive" -MemberType NoteProperty -Value $RegHive -PassThru 
-	                    $Key = $Key | Add-Member -Name "Path" -MemberType NoteProperty -Value $KeyPath -PassThru
-	                    $Key.PSTypeNames.Clear()
-	                    $Key.PSTypeNames.Add('BSonPosh.Registry.Key')
-	                    $Key
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Get-RegistryKey] ::  ERROR :: Unable to Open Key:$KeyPath in $KeyPath with RW Access"
-	                }
-	                
-	            }
-	            else
-	            {
-	                try
-	                {
-	                    $Key = $BaseKey.OpenSubKey("$KeyPath")
-	                    if($Key)
-	                    {
-	                        $Key = $Key | Add-Member -Name "ComputerName" -MemberType NoteProperty -Value $ComputerName -PassThru
-	                        $Key = $Key | Add-Member -Name "Hive" -MemberType NoteProperty -Value $RegHive -PassThru 
-	                        $Key = $Key | Add-Member -Name "Path" -MemberType NoteProperty -Value $KeyPath -PassThru
-	                        $Key.PSTypeNames.Clear()
-	                        $Key.PSTypeNames.Add('BSonPosh.Registry.Key')
-	                        $Key
-	                    }
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Get-RegistryKey] ::  ERROR :: Unable to Open SubKey:$Name in $KeyPath"
-	                }
-	            }
-	            
-	            if($Recurse)
-	            {
-	                Write-Verbose " [Get-RegistryKey] :: Recurse Passed: Processing Subkeys of [$($Key.Name)]"
-	                $Key
-	                $SubKeyNames = $Key.GetSubKeyNames()
-	                foreach($Name in $SubKeyNames)
-	                {
-	                    try
-	                    {
-	                        $SubKey = $Key.OpenSubKey($Name)
-	                        if($SubKey.GetSubKeyNames())
-	                        {
-	                            Write-Verbose " [Get-RegistryKey] :: Calling [Get-RegistryKey] for [$($SubKey.Name)]"
-	                            Get-RegistryKey -ComputerName $ComputerName -Path $SubKey.Name -Recurse
-	                        }
-	                        else
-	                        {
-	                            Get-RegistryKey -ComputerName $ComputerName -Path $SubKey.Name 
-	                        }
-	                    }
-	                    catch
-	                    {
-	                        Write-Verbose " [Get-RegistryKey] ::  ERROR :: Write-Host Unable to Open SubKey:$Name in $($Key.Name)"
-	                    }
-	                }
-	            }
-	        }
-	        Write-Verbose " [Get-RegistryKey] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Alias("Server")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName,
+
+		[Parameter()]
+		[switch]$Recurse,
+
+		[Alias("RW")]
+		[Parameter()]
+		[switch]$ReadWrite
+
+	)
+
+	Begin {
+
+		Write-Verbose " [Get-RegistryKey] :: Start Begin"
+		Write-Verbose " [Get-RegistryKey] :: `$Path = $Path"
+		Write-Verbose " [Get-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
+		$PathParts = $Path -split "\\|/", 0, "RegexMatch"
+		$Hive = $PathParts[0]
+		$KeyPath = $PathParts[1..$PathParts.count] -join "\"
+		Write-Verbose " [Get-RegistryKey] :: `$Hive = $Hive"
+		Write-Verbose " [Get-RegistryKey] :: `$KeyPath = $KeyPath"
+
+		Write-Verbose " [Get-RegistryKey] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Get-RegistryValue 
-	
-	function Get-RegistryValue
-	{
-	    
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Get-RegistryKey] :: Start Process"
+		Write-Verbose " [Get-RegistryKey] :: `$ComputerName = $ComputerName"
+
+		$RegHive = Get-RegistryHive $hive
+
+		if ($RegHive -eq 1) {
+			Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
+		}
+		else {
+			Write-Verbose " [Get-RegistryKey] :: `$RegHive = $RegHive"
+
+			$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+			Write-Verbose " [Get-RegistryKey] :: `$BaseKey = $BaseKey"
+
+			if ($ReadWrite) {
+				try {
+					$Key = $BaseKey.OpenSubKey($KeyPath, $true)
+					$Key = $Key | Add-Member -Name "ComputerName" -MemberType NoteProperty -Value $ComputerName -PassThru
+					$Key = $Key | Add-Member -Name "Hive" -MemberType NoteProperty -Value $RegHive -PassThru
+					$Key = $Key | Add-Member -Name "Path" -MemberType NoteProperty -Value $KeyPath -PassThru
+					$Key.PSTypeNames.Clear()
+					$Key.PSTypeNames.Add('BSonPosh.Registry.Key')
+					$Key
+				}
+				catch {
+					Write-Verbose " [Get-RegistryKey] ::  ERROR :: Unable to Open Key:$KeyPath in $KeyPath with RW Access"
+				}
+
+			}
+			else {
+				try {
+					$Key = $BaseKey.OpenSubKey("$KeyPath")
+					if ($Key) {
+						$Key = $Key | Add-Member -Name "ComputerName" -MemberType NoteProperty -Value $ComputerName -PassThru
+						$Key = $Key | Add-Member -Name "Hive" -MemberType NoteProperty -Value $RegHive -PassThru
+						$Key = $Key | Add-Member -Name "Path" -MemberType NoteProperty -Value $KeyPath -PassThru
+						$Key.PSTypeNames.Clear()
+						$Key.PSTypeNames.Add('BSonPosh.Registry.Key')
+						$Key
+					}
+				}
+				catch {
+					Write-Verbose " [Get-RegistryKey] ::  ERROR :: Unable to Open SubKey:$Name in $KeyPath"
+				}
+			}
+
+			if ($Recurse) {
+				Write-Verbose " [Get-RegistryKey] :: Recurse Passed: Processing Subkeys of [$($Key.Name)]"
+				$Key
+				$SubKeyNames = $Key.GetSubKeyNames()
+				foreach ($Name in $SubKeyNames) {
+					try {
+						$SubKey = $Key.OpenSubKey($Name)
+						if ($SubKey.GetSubKeyNames()) {
+							Write-Verbose " [Get-RegistryKey] :: Calling [Get-RegistryKey] for [$($SubKey.Name)]"
+							Get-RegistryKey -ComputerName $ComputerName -Path $SubKey.Name -Recurse
+						}
+						else {
+							Get-RegistryKey -ComputerName $ComputerName -Path $SubKey.Name
+						}
+					}
+					catch {
+						Write-Verbose " [Get-RegistryKey] ::  ERROR :: Write-Host Unable to Open SubKey:$Name in $($Key.Name)"
+					}
+				}
+			}
+		}
+		Write-Verbose " [Get-RegistryKey] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Get-RegistryValue
+
+function Get-RegistryValue {
+
+	<#
+	        .Synopsis
 	            Get the value for given the registry value.
-	            
+
 	        .Description
 	            Get the value for given the registry value.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key that contains the value.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Value to check.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to get value.
-	            
-	        .Parameter Recurse 
+
+	        .Parameter Recurse
 	            Recursively gets the Values on the given key.
-	            
-	        .Parameter Default 
+
+	        .Parameter Default
 	            Returns the default value for the Value.
-	        
+
 	        .Example
-	            Get-RegistryValue HKLM\SOFTWARE\Adobe\SwInstall -Name State 
+	            Get-RegistryValue HKLM\SOFTWARE\Adobe\SwInstall -Name State
 	            Description
 	            -----------
 	            Returns value of State under HKLM\SOFTWARE\Adobe\SwInstall.
-	            
+
 	        .Example
 	            Get-RegistryValue HKLM\Software\Adobe -Name State -ComputerName MyServer1
 	            Description
 	            -----------
 	            Returns value of State under HKLM\SOFTWARE\Adobe\SwInstall on MyServer1
-	            
+
 	        .Example
 	            Get-RegistryValue HKLM\Software\Adobe -Recurse
 	            Description
 	            -----------
 	            Returns all the values under HKLM\SOFTWARE\Adobe.
-	    
+
 	        .Example
 	            Get-RegistryValue HKLM\Software\Adobe -ComputerName MyServer1 -Recurse
 	            Description
 	            -----------
 	            Returns all the values under HKLM\SOFTWARE\Adobe on MyServer1
-	            
+
 	        .Example
 	            Get-RegistryValue HKLM\Software\Adobe -Default
 	            Description
 	            -----------
 	            Returns the default value for HKLM\SOFTWARE\Adobe.
-	                    
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryValue
 	            Remove-RegistryValue
 	            Test-RegistryValue
-	            
-	        .Notes    
+
+	        .Notes
 	            NAME:      Get-RegistryValue
 	            AUTHOR:    bsonposh
 	            Website:   http://www.bsonposh.com
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	    
-	        [Parameter()]
-	        [string]$Name,
-	        
-	        [Alias("dnsHostName")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName,
-	        
-	        [Parameter()]
-	        [switch]$Recurse,
-	        
-	        [Parameter()]
-	        [switch]$Default
-	    )
-	    
-	    Process
-	    {
-	    
-	        Write-Verbose " [Get-RegistryValue] :: Begin Process"
-	        Write-Verbose " [Get-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
-	        
-	        if($Recurse)
-	        {
-	            $Keys = Get-RegistryKey -Path $path -ComputerName $ComputerName -Recurse
-	            foreach($Key in $Keys)
-	            {
-	                if($Name)
-	                {
-	                    try
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] :: Getting Value for [$Name]"
-	                        $myobj = @{} #| Select ComputerName,Name,Value,Type,Path
-	                        $myobj.ComputerName = $ComputerName
-	                        $myobj.Name = $Name
-	                        $myobj.value = $Key.GetValue($Name)
-	                        $myobj.Type = $Key.GetValueKind($Name)
-	                        $myobj.path = $Key
-	                        
-	                        $obj = New-Object PSCustomObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                        $obj
-	                    }
-	                    catch
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
-	                    }
-	                
-	                }
-	                elseif($Default)
-	                {
-	                    try
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] :: Getting Value for [(Default)]"
-	                        $myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
-	                        $myobj.ComputerName = $ComputerName
-	                        $myobj.Name = "(Default)"
-	                        $myobj.value = if($Key.GetValue("")){$Key.GetValue("")}else{"EMPTY"}
-	                        $myobj.Type = if($Key.GetValue("")){$Key.GetValueKind("")}else{"N/A"}
-	                        $myobj.path = $Key
-	                        
-	                        $obj = New-Object PSCustomObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                        $obj
-	                    }
-	                    catch
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:(Default) in $($Key.Name)"
-	                    }
-	                }
-	                else
-	                {
-	                    try
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] :: Getting all Values for [$Key]"
-	                        foreach($ValueName in $Key.GetValueNames())
-	                        {
-	                            Write-Verbose " [Get-RegistryValue] :: Getting all Value for [$ValueName]"
-	                            $myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
-	                            $myobj.ComputerName = $ComputerName
-	                            $myobj.Name = if($ValueName -match "^$"){"(Default)"}else{$ValueName}
-	                            $myobj.value = $Key.GetValue($ValueName)
-	                            $myobj.Type = $Key.GetValueKind($ValueName)
-	                            $myobj.path = $Key
-	                            
-	                            $obj = New-Object PSCustomObject -Property $myobj
-	                            $obj.PSTypeNames.Clear()
-	                            $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                            $obj
-	                        }
-	                    }
-	                    catch
-	                    {
-	                        Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$ValueName in $($Key.Name)"
-	                    }
-	                }
-	            }
-	        }
-	        else
-	        {
-	            $Key = Get-RegistryKey -Path $path -ComputerName $ComputerName 
-	            Write-Verbose " [Get-RegistryValue] :: Get-RegistryKey returned $Key"
-	            if($Name)
-	            {
-	                try
-	                {
-	                    Write-Verbose " [Get-RegistryValue] :: Getting Value for [$Name]"
-	                    $myobj = @{} # | Select ComputerName,Name,Value,Type,Path
-	                    $myobj.ComputerName = $ComputerName
-	                    $myobj.Name = $Name
-	                    $myobj.value = $Key.GetValue($Name)
-	                    $myobj.Type = $Key.GetValueKind($Name)
-	                    $myobj.path = $Key
-	                    
-	                    $obj = New-Object PSCustomObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                    $obj
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
-	                }
-	            }
-	            elseif($Default)
-	            {
-	                try
-	                {
-	                    Write-Verbose " [Get-RegistryValue] :: Getting Value for [(Default)]"
-	                    $myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
-	                    $myobj.ComputerName = $ComputerName
-	                    $myobj.Name = "(Default)"
-	                    $myobj.value = if($Key.GetValue("")){$Key.GetValue("")}else{"EMPTY"}
-	                    $myobj.Type = if($Key.GetValue("")){$Key.GetValueKind("")}else{"N/A"}
-	                    $myobj.path = $Key
-	                    
-	                    $obj = New-Object PSCustomObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                    $obj
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
-	                }
-	            }
-	            else
-	            {
-	                Write-Verbose " [Get-RegistryValue] :: Getting all Values for [$Key]"
-	                foreach($ValueName in $Key.GetValueNames())
-	                {
-	                    Write-Verbose " [Get-RegistryValue] :: Getting all Value for [$ValueName]"
-	                    $myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
-	                    $myobj.ComputerName = $ComputerName
-	                    $myobj.Name = if($ValueName -match "^$"){"(Default)"}else{$ValueName}
-	                    $myobj.value = $Key.GetValue($ValueName)
-	                    $myobj.Type = $Key.GetValueKind($ValueName)
-	                    $myobj.path = $Key
-	                    
-	                    $obj = New-Object PSCustomObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.Registry.Value')
-	                    $obj
-	                }
-	            }
-	        }
-	        
-	        Write-Verbose " [Get-RegistryValue] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter()]
+		[string]$Name,
+
+		[Alias("dnsHostName")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName,
+
+		[Parameter()]
+		[switch]$Recurse,
+
+		[Parameter()]
+		[switch]$Default
+	)
+
+	Process {
+
+		Write-Verbose " [Get-RegistryValue] :: Begin Process"
+		Write-Verbose " [Get-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
+
+		if ($Recurse) {
+			$Keys = Get-RegistryKey -Path $path -ComputerName $ComputerName -Recurse
+			foreach ($Key in $Keys) {
+				if ($Name) {
+					try {
+						Write-Verbose " [Get-RegistryValue] :: Getting Value for [$Name]"
+						$myobj = @{} #| Select ComputerName,Name,Value,Type,Path
+						$myobj.ComputerName = $ComputerName
+						$myobj.Name = $Name
+						$myobj.value = $Key.GetValue($Name)
+						$myobj.Type = $Key.GetValueKind($Name)
+						$myobj.path = $Key
+
+						$obj = New-Object PSCustomObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+						$obj
+					}
+					catch {
+						Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
+					}
+
+				}
+				elseif ($Default) {
+					try {
+						Write-Verbose " [Get-RegistryValue] :: Getting Value for [(Default)]"
+						$myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
+						$myobj.ComputerName = $ComputerName
+						$myobj.Name = "(Default)"
+						$myobj.value = if ($Key.GetValue("")) { $Key.GetValue("") }else { "EMPTY" }
+						$myobj.Type = if ($Key.GetValue("")) { $Key.GetValueKind("") }else { "N/A" }
+						$myobj.path = $Key
+
+						$obj = New-Object PSCustomObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+						$obj
+					}
+					catch {
+						Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:(Default) in $($Key.Name)"
+					}
+				}
+				else {
+					try {
+						Write-Verbose " [Get-RegistryValue] :: Getting all Values for [$Key]"
+						foreach ($ValueName in $Key.GetValueNames()) {
+							Write-Verbose " [Get-RegistryValue] :: Getting all Value for [$ValueName]"
+							$myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
+							$myobj.ComputerName = $ComputerName
+							$myobj.Name = if ($ValueName -match "^$") { "(Default)" }else { $ValueName }
+							$myobj.value = $Key.GetValue($ValueName)
+							$myobj.Type = $Key.GetValueKind($ValueName)
+							$myobj.path = $Key
+
+							$obj = New-Object PSCustomObject -Property $myobj
+							$obj.PSTypeNames.Clear()
+							$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+							$obj
+						}
+					}
+					catch {
+						Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$ValueName in $($Key.Name)"
+					}
+				}
+			}
+		}
+		else {
+			$Key = Get-RegistryKey -Path $path -ComputerName $ComputerName
+			Write-Verbose " [Get-RegistryValue] :: Get-RegistryKey returned $Key"
+			if ($Name) {
+				try {
+					Write-Verbose " [Get-RegistryValue] :: Getting Value for [$Name]"
+					$myobj = @{} # | Select ComputerName,Name,Value,Type,Path
+					$myobj.ComputerName = $ComputerName
+					$myobj.Name = $Name
+					$myobj.value = $Key.GetValue($Name)
+					$myobj.Type = $Key.GetValueKind($Name)
+					$myobj.path = $Key
+
+					$obj = New-Object PSCustomObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+					$obj
+				}
+				catch {
+					Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
+				}
+			}
+			elseif ($Default) {
+				try {
+					Write-Verbose " [Get-RegistryValue] :: Getting Value for [(Default)]"
+					$myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
+					$myobj.ComputerName = $ComputerName
+					$myobj.Name = "(Default)"
+					$myobj.value = if ($Key.GetValue("")) { $Key.GetValue("") }else { "EMPTY" }
+					$myobj.Type = if ($Key.GetValue("")) { $Key.GetValueKind("") }else { "N/A" }
+					$myobj.path = $Key
+
+					$obj = New-Object PSCustomObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+					$obj
+				}
+				catch {
+					Write-Verbose " [Get-RegistryValue] ::  ERROR :: Unable to Get Value for:$Name in $($Key.Name)"
+				}
+			}
+			else {
+				Write-Verbose " [Get-RegistryValue] :: Getting all Values for [$Key]"
+				foreach ($ValueName in $Key.GetValueNames()) {
+					Write-Verbose " [Get-RegistryValue] :: Getting all Value for [$ValueName]"
+					$myobj = @{} #"" | Select ComputerName,Name,Value,Type,Path
+					$myobj.ComputerName = $ComputerName
+					$myobj.Name = if ($ValueName -match "^$") { "(Default)" }else { $ValueName }
+					$myobj.value = $Key.GetValue($ValueName)
+					$myobj.Type = $Key.GetValueKind($ValueName)
+					$myobj.path = $Key
+
+					$obj = New-Object PSCustomObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.Registry.Value')
+					$obj
+				}
+			}
+		}
+
+		Write-Verbose " [Get-RegistryValue] :: End Process"
+
 	}
-	    
-	#endregion 
-	
-	#region New-RegistryKey 
-	
-	function New-RegistryKey
-	{
-	    
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region New-RegistryKey
+
+function New-RegistryKey {
+
+	<#
+	        .Synopsis
 	            Creates a new key in the provide by Path.
-	            
+
 	        .Description
 	            Creates a new key in the provide by Path.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to create the key in.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to the create registry key on.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Key to create
-	        
+
 	        .Example
 	            New-registrykey HKLM\Software\Adobe -Name DeleteMe
 	            Description
 	            -----------
 	            Creates a key called DeleteMe under HKLM\Software\Adobe
-	            
+
 	        .Example
 	            New-registrykey HKLM\Software\Adobe -Name DeleteMe -ComputerName MyServer1
 	            Description
 	            -----------
 	            Creates a key called DeleteMe under HKLM\Software\Adobe on MyServer1
-	                    
+
 	        .OUTPUTS
 	            Microsoft.Win32.RegistryKey
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-RegistryKey
 	            Remove-RegistryKey
 	            Test-RegistryKey
-	            
+
 	        NAME:      New-RegistryKey
 	        AUTHOR:    bsonposh
 	        Website:   http://www.bsonposh.com
 	        Version:   1
 	        #Requires -Version 2.0
 	    #>
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Alias("Server")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName
-	    )
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [New-RegistryKey] :: Start Begin"
-	        $ReadWrite = [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree
-	        
-	        Write-Verbose " [New-RegistryKey] :: `$Path = $Path"
-	        Write-Verbose " [New-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
-	        $PathParts = $Path -split "\\|/",0,"RegexMatch"
-	        $Hive = $PathParts[0]
-	        $KeyPath = $PathParts[1..$PathParts.count] -join "\"
-	        Write-Verbose " [New-RegistryKey] :: `$Hive = $Hive"
-	        Write-Verbose " [New-RegistryKey] :: `$KeyPath = $KeyPath"
-	        
-	        Write-Verbose " [New-RegistryKey] :: End Begin"
-	        
-	    }
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Get-RegistryKey] :: Start Process"
-	        Write-Verbose " [Get-RegistryKey] :: `$ComputerName = $ComputerName"
-	        
-	        $RegHive = Get-RegistryHive $hive
-	        
-	        if($RegHive -eq 1)
-	        {
-	            Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
-	        }
-	        else
-	        {
-	            Write-Verbose " [Get-RegistryKey] :: `$RegHive = $RegHive"
-	            $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	            Write-Verbose " [Get-RegistryKey] :: `$BaseKey = $BaseKey"
-	            $Key = $BaseKey.OpenSubKey($KeyPath,$True)
-	            if($PSCmdlet.ShouldProcess($ComputerName,"Creating Key [$Name] under $Path"))
-	            {
-	                $Key.CreateSubKey($Name,$ReadWrite)
-	            }
-	        }
-	        Write-Verbose " [Get-RegistryKey] :: End Process"
-	    
-	    }
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Alias("Server")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName
+	)
+	Begin {
+
+		Write-Verbose " [New-RegistryKey] :: Start Begin"
+		$ReadWrite = [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree
+
+		Write-Verbose " [New-RegistryKey] :: `$Path = $Path"
+		Write-Verbose " [New-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
+		$PathParts = $Path -split "\\|/", 0, "RegexMatch"
+		$Hive = $PathParts[0]
+		$KeyPath = $PathParts[1..$PathParts.count] -join "\"
+		Write-Verbose " [New-RegistryKey] :: `$Hive = $Hive"
+		Write-Verbose " [New-RegistryKey] :: `$KeyPath = $KeyPath"
+
+		Write-Verbose " [New-RegistryKey] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region New-RegistryValue 
-	
-	function New-RegistryValue
-	{
-	    
-	    <#
-	        .Synopsis 
+	Process {
+
+		Write-Verbose " [Get-RegistryKey] :: Start Process"
+		Write-Verbose " [Get-RegistryKey] :: `$ComputerName = $ComputerName"
+
+		$RegHive = Get-RegistryHive $hive
+
+		if ($RegHive -eq 1) {
+			Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
+		}
+		else {
+			Write-Verbose " [Get-RegistryKey] :: `$RegHive = $RegHive"
+			$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+			Write-Verbose " [Get-RegistryKey] :: `$BaseKey = $BaseKey"
+			$Key = $BaseKey.OpenSubKey($KeyPath, $True)
+			if ($PSCmdlet.ShouldProcess($ComputerName, "Creating Key [$Name] under $Path")) {
+				$Key.CreateSubKey($Name, $ReadWrite)
+			}
+		}
+		Write-Verbose " [Get-RegistryKey] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region New-RegistryValue
+
+function New-RegistryValue {
+
+	<#
+	        .Synopsis
 	            Create a value under the registry key.
-	            
+
 	        .Description
 	            Create a value under the registry key.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Value to create.
-	            
-	        .Parameter Value 
+
+	        .Parameter Value
 	            Value to for the new Value.
-	            
+
 	        .Parameter Type
 	            Type for the new Value. Valid Types: Unknown, String (default,) ExpandString, Binary, DWord, MultiString, a
 	    nd Qword
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to create the Value on.
-	            
+
 	        .Example
 	            New-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name State -Value "Hi There"
 	            Description
 	            -----------
 	            Creates the Value State and sets the value to "Hi There" under HKLM\SOFTWARE\Adobe\MyKey.
-	            
+
 	        .Example
 	            New-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name State -Value 0 -ComputerName MyServer1
 	            Description
 	            -----------
 	            Creates the Value State and sets the value to "Hi There" under HKLM\SOFTWARE\Adobe\MyKey on MyServer1.
-	            
+
 	        .Example
 	            New-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name MyDWord -Value 0 -Type DWord
 	            Description
 	            -----------
 	            Creates the DWORD Value MyDWord and sets the value to 0 under HKLM\SOFTWARE\Adobe\MyKey.
-	                    
+
 	        .OUTPUTS
 	            System.Boolean
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryValue
 	            Remove-RegistryValue
 	            Get-RegistryValue
-	            
+
 	        NAME:      Test-RegistryValue
 	        AUTHOR:    bsonposh
 	        Website:   http://www.bsonposh.com
 	        Version:   1
 	        #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Parameter()]
-	        [string]$Value,
-	        
-	        [Parameter()]
-	        [string]$Type,
-	        
-	        [Alias("dnsHostName")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName
-	    )
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [New-RegistryValue] :: Start Begin"
-	        Write-Verbose " [New-RegistryValue] :: `$Path = $Path"
-	        Write-Verbose " [New-RegistryValue] :: `$Name = $Name"
-	        Write-Verbose " [New-RegistryValue] :: `$Value = $Value"
-	        
-	        Switch ($Type)
-	        {
-	            "Unknown"       {$ValueType = [Microsoft.Win32.RegistryValueKind]::Unknown;continue}
-	            "String"        {$ValueType = [Microsoft.Win32.RegistryValueKind]::String;continue}
-	            "ExpandString"  {$ValueType = [Microsoft.Win32.RegistryValueKind]::ExpandString;continue}
-	            "Binary"        {$ValueType = [Microsoft.Win32.RegistryValueKind]::Binary;continue}
-	            "DWord"         {$ValueType = [Microsoft.Win32.RegistryValueKind]::DWord;continue}
-	            "MultiString"   {$ValueType = [Microsoft.Win32.RegistryValueKind]::MultiString;continue}
-	            "QWord"         {$ValueType = [Microsoft.Win32.RegistryValueKind]::QWord;continue}
-	            default         {$ValueType = [Microsoft.Win32.RegistryValueKind]::String;continue}
-	        }
-	        Write-Verbose " [New-RegistryValue] :: `$Type = $Type"
-	        Write-Verbose " [New-RegistryValue] :: End Begin"
-	        
-	    }
-	    
-	    Process 
-	    {
-	    
-	        if(Test-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName)
-	        {
-	            "Registry value already exist"     
-	        }
-	        else
-	        {
-	            Write-Verbose " [New-RegistryValue] :: Start Process"
-	            Write-Verbose " [New-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
-	            $Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
-	            Write-Verbose " [New-RegistryValue] :: Get-RegistryKey returned $Key"
-	            Write-Verbose " [New-RegistryValue] :: Setting Value for [$Name]"
-	            if($PSCmdlet.ShouldProcess($ComputerName,"Creating Value [$Name] under $Path with value [$Value]"))
-	            {
-	                if($Value)
-	                {
-	                    $Key.SetValue($Name,$Value,$ValueType)
-	                }
-	                else
-	                {
-	                    $Key.SetValue($Name,$ValueType)
-	                }
-	                Write-Verbose " [New-RegistryValue] :: Returning New Key: Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName"
-	                Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName
-	            }
-	        }
-	        Write-Verbose " [New-RegistryValue] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Parameter()]
+		[string]$Value,
+
+		[Parameter()]
+		[string]$Type,
+
+		[Alias("dnsHostName")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName
+	)
+	Begin {
+
+		Write-Verbose " [New-RegistryValue] :: Start Begin"
+		Write-Verbose " [New-RegistryValue] :: `$Path = $Path"
+		Write-Verbose " [New-RegistryValue] :: `$Name = $Name"
+		Write-Verbose " [New-RegistryValue] :: `$Value = $Value"
+
+		Switch ($Type) {
+			"Unknown" { $ValueType = [Microsoft.Win32.RegistryValueKind]::Unknown; continue }
+			"String" { $ValueType = [Microsoft.Win32.RegistryValueKind]::String; continue }
+			"ExpandString" { $ValueType = [Microsoft.Win32.RegistryValueKind]::ExpandString; continue }
+			"Binary" { $ValueType = [Microsoft.Win32.RegistryValueKind]::Binary; continue }
+			"DWord" { $ValueType = [Microsoft.Win32.RegistryValueKind]::DWord; continue }
+			"MultiString" { $ValueType = [Microsoft.Win32.RegistryValueKind]::MultiString; continue }
+			"QWord" { $ValueType = [Microsoft.Win32.RegistryValueKind]::QWord; continue }
+			default { $ValueType = [Microsoft.Win32.RegistryValueKind]::String; continue }
+		}
+		Write-Verbose " [New-RegistryValue] :: `$Type = $Type"
+		Write-Verbose " [New-RegistryValue] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Remove-RegistryKey 
-	
-	function Remove-RegistryKey
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		if (Test-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName) {
+			"Registry value already exist"
+		}
+		else {
+			Write-Verbose " [New-RegistryValue] :: Start Process"
+			Write-Verbose " [New-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
+			$Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
+			Write-Verbose " [New-RegistryValue] :: Get-RegistryKey returned $Key"
+			Write-Verbose " [New-RegistryValue] :: Setting Value for [$Name]"
+			if ($PSCmdlet.ShouldProcess($ComputerName, "Creating Value [$Name] under $Path with value [$Value]")) {
+				if ($Value) {
+					$Key.SetValue($Name, $Value, $ValueType)
+				}
+				else {
+					$Key.SetValue($Name, $ValueType)
+				}
+				Write-Verbose " [New-RegistryValue] :: Returning New Key: Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName"
+				Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName
+			}
+		}
+		Write-Verbose " [New-RegistryValue] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Remove-RegistryKey
+
+function Remove-RegistryKey {
+
+	<#
+	        .Synopsis
 	            Removes a new key in the provide by Path.
-	            
+
 	        .Description
 	            Removes a new key in the provide by Path.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to remove the registry key from.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to remove the registry key from.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the registry key to remove.
-	            
-	        .Parameter Recurse 
+
+	        .Parameter Recurse
 	            Recursively removes registry key and all children from path.
-	        
+
 	        .Example
 	            Remove-registrykey HKLM\Software\Adobe -Name DeleteMe
 	            Description
 	            -----------
 	            Removes the registry key called DeleteMe under HKLM\Software\Adobe
-	            
+
 	        .Example
 	            Remove-RegistryKey HKLM\Software\Adobe -Name DeleteMe -ComputerName MyServer1
 	            Description
 	            -----------
 	            Removes the key called DeleteMe under HKLM\Software\Adobe on MyServer1
-	            
+
 	        .Example
 	            Remove-RegistryKey HKLM\Software\Adobe -Name DeleteMe -ComputerName MyServer1 -Recurse
 	            Description
 	            -----------
 	            Removes the key called DeleteMe under HKLM\Software\Adobe on MyServer1 and all child keys.
-	                    
+
 	        .OUTPUTS
 	            $null
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-RegistryKey
 	            New-RegistryKey
 	            Test-RegistryKey
-	            
+
 	        .Notes
 	        NAME:      Remove-RegistryKey
 	        AUTHOR:    bsonposh
@@ -1849,266 +1724,250 @@ function Main {
 	        Version:   1
 	        #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	    
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Alias("Server")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName,
-	        
-	        [Parameter()]
-	        [switch]$Recurse
-	    )
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [Remove-RegistryKey] :: Start Begin"
-	        
-	        Write-Verbose " [Remove-RegistryKey] :: `$Path = $Path"
-	        Write-Verbose " [Remove-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
-	        $PathParts = $Path -split "\\|/",0,"RegexMatch"
-	        $Hive = $PathParts[0]
-	        $KeyPath = $PathParts[1..$PathParts.count] -join "\"
-	        Write-Verbose " [Remove-RegistryKey] :: `$Hive = $Hive"
-	        Write-Verbose " [Remove-RegistryKey] :: `$KeyPath = $KeyPath"
-	        
-	        Write-Verbose " [Remove-RegistryKey] :: End Begin"
-	    
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Remove-RegistryKey] :: Start Process"
-	        Write-Verbose " [Remove-RegistryKey] :: `$ComputerName = $ComputerName"
-	        
-	        if(Test-RegistryKey -Path $path\$name -ComputerName $ComputerName)
-	        {
-	            $RegHive = Get-RegistryHive $hive
-	            
-	            if($RegHive -eq 1)
-	            {
-	                Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
-	            }
-	            else
-	            {
-	                Write-Verbose " [Remove-RegistryKey] :: `$RegHive = $RegHive"
-	                $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                Write-Verbose " [Remove-RegistryKey] :: `$BaseKey = $BaseKey"
-	                
-	                $Key = $BaseKey.OpenSubKey($KeyPath,$True)
-	                
-	                if($PSCmdlet.ShouldProcess($ComputerName,"Deleteing Key [$Name]"))
-	                {
-	                    if($Recurse)
-	                    {
-	                        Write-Verbose " [Remove-RegistryKey] :: Calling DeleteSubKeyTree($Name)"
-	                        $Key.DeleteSubKeyTree($Name)
-	                    }
-	                    else
-	                    {
-	                        Write-Verbose " [Remove-RegistryKey] :: Calling DeleteSubKey($Name)"
-	                        $Key.DeleteSubKey($Name)
-	                    }
-	                }
-	            }
-	        }
-	        else
-	        {
-	            "Key [$path\$name] does not exist"
-	        }
-	        Write-Verbose " [Remove-RegistryKey] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Alias("Server")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName,
+
+		[Parameter()]
+		[switch]$Recurse
+	)
+	Begin {
+
+		Write-Verbose " [Remove-RegistryKey] :: Start Begin"
+
+		Write-Verbose " [Remove-RegistryKey] :: `$Path = $Path"
+		Write-Verbose " [Remove-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
+		$PathParts = $Path -split "\\|/", 0, "RegexMatch"
+		$Hive = $PathParts[0]
+		$KeyPath = $PathParts[1..$PathParts.count] -join "\"
+		Write-Verbose " [Remove-RegistryKey] :: `$Hive = $Hive"
+		Write-Verbose " [Remove-RegistryKey] :: `$KeyPath = $KeyPath"
+
+		Write-Verbose " [Remove-RegistryKey] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Remove-RegistryValue 
-	
-	function Remove-RegistryValue 
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Remove-RegistryKey] :: Start Process"
+		Write-Verbose " [Remove-RegistryKey] :: `$ComputerName = $ComputerName"
+
+		if (Test-RegistryKey -Path $path\$name -ComputerName $ComputerName) {
+			$RegHive = Get-RegistryHive $hive
+
+			if ($RegHive -eq 1) {
+				Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
+			}
+			else {
+				Write-Verbose " [Remove-RegistryKey] :: `$RegHive = $RegHive"
+				$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+				Write-Verbose " [Remove-RegistryKey] :: `$BaseKey = $BaseKey"
+
+				$Key = $BaseKey.OpenSubKey($KeyPath, $True)
+
+				if ($PSCmdlet.ShouldProcess($ComputerName, "Deleteing Key [$Name]")) {
+					if ($Recurse) {
+						Write-Verbose " [Remove-RegistryKey] :: Calling DeleteSubKeyTree($Name)"
+						$Key.DeleteSubKeyTree($Name)
+					}
+					else {
+						Write-Verbose " [Remove-RegistryKey] :: Calling DeleteSubKey($Name)"
+						$Key.DeleteSubKey($Name)
+					}
+				}
+			}
+		}
+		else {
+			"Key [$path\$name] does not exist"
+		}
+		Write-Verbose " [Remove-RegistryKey] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Remove-RegistryValue
+
+function Remove-RegistryValue {
+
+	<#
+	        .Synopsis
 	            Removes the value.
-	            
+
 	        .Description
 	            Removes the value.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key that contains the value.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Value to Remove.
-	    
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to remove value from.
-	            
+
 	        .Example
 	            Remove-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name State
 	            Description
 	            -----------
 	            Removes the value STATE under HKLM\SOFTWARE\Adobe\MyKey.
-	            
+
 	        .Example
 	            Remove-RegistryValue HKLM\Software\Adobe\MyKey -Name State -ComputerName MyServer1
 	            Description
 	            -----------
 	            Removes the value STATE under HKLM\SOFTWARE\Adobe\MyKey on MyServer1.
-	                    
+
 	        .OUTPUTS
 	            $null
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryValue
 	            Test-RegistryValue
 	            Get-RegistryValue
 	            Set-RegistryValue
-	            
+
 	        NAME:      Remove-RegistryValue
 	        AUTHOR:    bsonposh
 	        Website:   http://www.bsonposh.com
 	        Version:   1
 	        #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Alias("dnsHostName")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName
-	    )
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [Remove-RegistryValue] :: Start Begin"
-	        
-	        Write-Verbose " [Remove-RegistryValue] :: `$Path = $Path"
-	        Write-Verbose " [Remove-RegistryValue] :: `$Name = $Name"
-	        
-	        Write-Verbose " [Remove-RegistryValue] :: End Begin"
-	        
-	    }
-	    
-	    Process 
-	    {
-	    
-	        if(Test-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName)
-	        {
-	            Write-Verbose " [Remove-RegistryValue] :: Start Process"
-	            Write-Verbose " [Remove-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
-	            $Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
-	            Write-Verbose " [Remove-RegistryValue] :: Get-RegistryKey returned $Key"
-	            Write-Verbose " [Remove-RegistryValue] :: Setting Value for [$Name]"
-	            if($PSCmdlet.ShouldProcess($ComputerName,"Deleting Value [$Name] under $Path"))
-	            {
-	                $Key.DeleteValue($Name)
-	            }
-	        }
-	        else
-	        {
-	            "Registry Value is already gone"
-	        }
-	        
-	        Write-Verbose " [Remove-RegistryValue] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Alias("dnsHostName")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName
+	)
+	Begin {
+
+		Write-Verbose " [Remove-RegistryValue] :: Start Begin"
+
+		Write-Verbose " [Remove-RegistryValue] :: `$Path = $Path"
+		Write-Verbose " [Remove-RegistryValue] :: `$Name = $Name"
+
+		Write-Verbose " [Remove-RegistryValue] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Search-Registry 
-	
-	function Search-Registry 
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		if (Test-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName) {
+			Write-Verbose " [Remove-RegistryValue] :: Start Process"
+			Write-Verbose " [Remove-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
+			$Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
+			Write-Verbose " [Remove-RegistryValue] :: Get-RegistryKey returned $Key"
+			Write-Verbose " [Remove-RegistryValue] :: Setting Value for [$Name]"
+			if ($PSCmdlet.ShouldProcess($ComputerName, "Deleting Value [$Name] under $Path")) {
+				$Key.DeleteValue($Name)
+			}
+		}
+		else {
+			"Registry Value is already gone"
+		}
+
+		Write-Verbose " [Remove-RegistryValue] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Search-Registry
+
+function Search-Registry {
+
+	<#
+	        .Synopsis
 	            Searchs the Registry.
-	            
+
 	        .Description
 	            Searchs the Registry.
-	                        
-	        .Parameter Filter 
+
+	        .Parameter Filter
 	            The RegEx filter you want to search for.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Key or Value you want to search for.
-	        
+
 	        .Parameter Value
 	            Value to search for (Registry Values only.)
-	            
+
 	        .Parameter Path
 	            Base of the Search. Should be in this format: "Software\Microsoft\..." See the Examples for specific exampl
 	    es.
-	            
+
 	        .Parameter Hive
 	            The Base Hive to search in (Default to LocalMachine.)
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to search.
-	            
+
 	        .Parameter KeyOnly
 	            Only returns Registry Keys. Not valid with -value parameter.
-	            
+
 	        .Example
 	            Search-Registry -Hive HKLM -Filter "Powershell" -Path "SOFTWARE\Clients"
 	            Description
 	            -----------
 	            Searchs the Registry for Keys or Values that match 'Powershell" in path "SOFTWARE\Clients"
-	            
+
 	        .Example
 	            Search-Registry -Hive HKLM -Filter "Powershell" -Path "SOFTWARE\Clients" -computername MyServer1
 	            Description
 	            -----------
 	            Searchs the Registry for Keys or Values that match 'Powershell" in path "SOFTWARE\Clients" on MyServer1
-	            
+
 	        .Example
 	            Search-Registry -Hive HKLM -Name "Powershell" -Path "SOFTWARE\Clients"
 	            Description
 	            -----------
 	            Searchs the Registry keys and values with name 'Powershell' in "SOFTWARE\Clients"
-	            
+
 	        .Example
 	            Search-Registry -Hive HKLM -Name "Powershell" -Path "SOFTWARE\Clients" -KeyOnly
 	            Description
 	            -----------
 	            Searchs the Registry keys with name 'Powershell' in "SOFTWARE\Clients"
-	        
+
 	        .Example
 	            Search-Registry -Hive HKLM -Value "Powershell" -Path "SOFTWARE\Clients"
 	            Description
 	            -----------
 	            Searchs the Registry Values with Value of 'Powershell' in "SOFTWARE\Clients"
-	            
+
 	        .OUTPUTS
 	            Microsoft.Win32.RegistryKey
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-RegistryKey
 	            Get-RegistryValue
 	            Test-RegistryKey
-	        
+
 	        .Notes
 	            NAME:      Search-Registry
 	            AUTHOR:    bsonposh
@@ -2116,252 +1975,218 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	        
-	    [Cmdletbinding(DefaultParameterSetName="ByFilter")]
-	    Param(
-	        [Parameter(ParameterSetName="ByFilter",Position=0)]
-	        [string]$Filter= ".*",
-	        
-	        [Parameter(ParameterSetName="ByName",Position=0)]
-	        [string]$Name,
-	        
-	        [Parameter(ParameterSetName="ByValue",Position=0)]
-	        [string]$Value,
-	        
-	        [Parameter()]
-	        [string]$Path,
-	        
-	        [Parameter()]
-	        [string]$Hive = "LocalMachine",
-	        
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME,
-	            
-	        [Parameter()]
-	        [switch]$KeyOnly
-	    )
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [Search-Registry] :: Start Begin"
-	        
-	        Write-Verbose " [Search-Registry] :: Active Parameter Set $($PSCmdlet.ParameterSetName)"
-	        switch ($PSCmdlet.ParameterSetName)
-	        {
-	            "ByFilter"    {Write-Verbose " [Search-Registry] :: `$Filter = $Filter"}
-	            "ByName"    {Write-Verbose " [Search-Registry] :: `$Name = $Name"}
-	            "ByValue"    {Write-Verbose " [Search-Registry] :: `$Value = $Value"}
-	        }
-	        $RegHive = Get-RegistryHive $Hive
-	        Write-Verbose " [Search-Registry] :: `$Hive = $RegHive"
-	        Write-Verbose " [Search-Registry] :: `$KeyOnly = $KeyOnly"
-	        
-	        Write-Verbose " [Search-Registry] :: End Begin"
-	    
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Search-Registry] :: Start Process"
-	        
-	        Write-Verbose " [Search-Registry] :: `$ComputerName = $ComputerName"
-	        switch ($PSCmdlet.ParameterSetName)
-	        {
-	            "ByFilter"    {
-	                            if($KeyOnly)
-	                            {
-	                                if($Path -and (Test-RegistryKey "$RegHive\$Path"))
-	                                {
-	                                    Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                }
-	                                else
-	                                {
-	                                $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                                foreach($SubKeyName in $BaseKey.GetSubKeyNames())
-	                                {
-	                                    try
-	                                    {
-	                                        $SubKey = $BaseKey.OpenSubKey($SubKeyName,$true)
-	                                        Get-RegistryKey -Path $SubKey.Name -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                    }
-	                                    catch
-	                                    {
-	                                        Write-Host "Access Error on Key [$SubKeyName]... skipping."
-	                                    }
-	                                }
-	                                }
-	                            }
-	                            else
-	                            {
-	                                if($Path -and (Test-RegistryKey "$RegHive\$Path"))
-	                                {
-	                                    Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                    Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                }
-	                                else
-	                                {
-	                                    $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                                    foreach($SubKeyName in $BaseKey.GetSubKeyNames())
-	                                    {
-	                                        try
-	                                        {
-	                                            $SubKey = $BaseKey.OpenSubKey($SubKeyName,$true)
-	                                            Get-RegistryKey -Path $SubKey.Name -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                            Get-RegistryValue -Path $SubKey.Name -ComputerName $ComputerName -Recurse | ?{$_.Name -match "$Filter"}
-	                                        }
-	                                        catch
-	                                        {
-	                                            Write-Host "Access Error on Key [$SubKeyName]... skipping."
-	                                        }
-	                                    }
-	                                }
-	                            }
-	                        }
-	            "ByName"    {
-	                            if($KeyOnly)
-	                            {
-	                                if($Path -and (Test-RegistryKey "$RegHive\$Path"))
-	                                {
-	                                    $NameFilter = "^.*\\{0}$" -f $Name
-	                                    Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match $NameFilter}
-	                                }
-	                                else
-	                                {
-	                                    $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                                    foreach($SubKeyName in $BaseKey.GetSubKeyNames())
-	                                    {
-	                                        try
-	                                        {
-	                                            $SubKey = $BaseKey.OpenSubKey($SubKeyName,$true)
-	                                            $NameFilter = "^.*\\{0}$" -f $Name
-	                                            Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match $NameFilter}
-	                                        }
-	                                        catch
-	                                        {
-	                                            Write-Host "Access Error on Key [$SubKeyName]... skipping."
-	                                        }
-	                                    }
-	                                }
-	                            }
-	                            else
-	                            {
-	                                if($Path -and (Test-RegistryKey "$RegHive\$Path"))
-	                                {
-	                                    $NameFilter = "^.*\\{0}$" -f $Name
-	                                    Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match $NameFilter}
-	                                    Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -eq $Name}
-	                                }
-	                                else
-	                                {
-	                                    $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                                    foreach($SubKeyName in $BaseKey.GetSubKeyNames())
-	                                    {
-	                                        try
-	                                        {
-	                                            $SubKey = $BaseKey.OpenSubKey($SubKeyName,$true)
-	                                            $NameFilter = "^.*\\{0}$" -f $Name
-	                                            Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Name -match $NameFilter}
-	                                            Get-RegistryValue -Path $SubKey.Name -ComputerName $ComputerName -Recurse | ?{$_.Name -eq $Name}
-	                                        }
-	                                        catch
-	                                        {
-	                                            Write-Host "Access Error on Key [$SubKeyName]... skipping."
-	                                        }
-	                                    }
-	                                }
-	                            }
-	                        }
-	            "ByValue"    {
-	                            if($Path -and (Test-RegistryKey "$RegHive\$Path"))
-	                            {
-	                                Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Value -eq $Value}
-	                            }
-	                            else
-	                            {
-	                                $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	                                foreach($SubKeyName in $BaseKey.GetSubKeyNames())
-	                                {
-	                                    try
-	                                    {
-	                                        $SubKey = $BaseKey.OpenSubKey($SubKeyName,$true)
-	                                        Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | ?{$_.Value -eq $Value}
-	                                    }
-	                                    catch
-	                                    {
-	                                        Write-Host "Access Error on Key [$SubKeyName]... skipping."
-	                                    }
-	                                }
-	                            }
-	                        }
-	        }
-	        
-	        Write-Verbose " [Search-Registry] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(DefaultParameterSetName = "ByFilter")]
+	Param(
+		[Parameter(ParameterSetName = "ByFilter", Position = 0)]
+		[string]$Filter = ".*",
+
+		[Parameter(ParameterSetName = "ByName", Position = 0)]
+		[string]$Name,
+
+		[Parameter(ParameterSetName = "ByValue", Position = 0)]
+		[string]$Value,
+
+		[Parameter()]
+		[string]$Path,
+
+		[Parameter()]
+		[string]$Hive = "LocalMachine",
+
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME,
+
+		[Parameter()]
+		[switch]$KeyOnly
+	)
+	Begin {
+
+		Write-Verbose " [Search-Registry] :: Start Begin"
+
+		Write-Verbose " [Search-Registry] :: Active Parameter Set $($PSCmdlet.ParameterSetName)"
+		switch ($PSCmdlet.ParameterSetName) {
+			"ByFilter" { Write-Verbose " [Search-Registry] :: `$Filter = $Filter" }
+			"ByName" { Write-Verbose " [Search-Registry] :: `$Name = $Name" }
+			"ByValue" { Write-Verbose " [Search-Registry] :: `$Value = $Value" }
+		}
+		$RegHive = Get-RegistryHive $Hive
+		Write-Verbose " [Search-Registry] :: `$Hive = $RegHive"
+		Write-Verbose " [Search-Registry] :: `$KeyOnly = $KeyOnly"
+
+		Write-Verbose " [Search-Registry] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Set-RegistryValue 
-	
-	function Set-RegistryValue
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Search-Registry] :: Start Process"
+
+		Write-Verbose " [Search-Registry] :: `$ComputerName = $ComputerName"
+		switch ($PSCmdlet.ParameterSetName) {
+			"ByFilter" {
+				if ($KeyOnly) {
+					if ($Path -and (Test-RegistryKey "$RegHive\$Path")) {
+						Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+					}
+					else {
+						$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+						foreach ($SubKeyName in $BaseKey.GetSubKeyNames()) {
+							try {
+								$SubKey = $BaseKey.OpenSubKey($SubKeyName, $true)
+								Get-RegistryKey -Path $SubKey.Name -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+							}
+							catch {
+								Write-Host "Access Error on Key [$SubKeyName]... skipping."
+							}
+						}
+					}
+				}
+				else {
+					if ($Path -and (Test-RegistryKey "$RegHive\$Path")) {
+						Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+						Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+					}
+					else {
+						$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+						foreach ($SubKeyName in $BaseKey.GetSubKeyNames()) {
+							try {
+								$SubKey = $BaseKey.OpenSubKey($SubKeyName, $true)
+								Get-RegistryKey -Path $SubKey.Name -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+								Get-RegistryValue -Path $SubKey.Name -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match "$Filter" }
+							}
+							catch {
+								Write-Host "Access Error on Key [$SubKeyName]... skipping."
+							}
+						}
+					}
+				}
+			}
+			"ByName" {
+				if ($KeyOnly) {
+					if ($Path -and (Test-RegistryKey "$RegHive\$Path")) {
+						$NameFilter = "^.*\\{0}$" -f $Name
+						Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match $NameFilter }
+					}
+					else {
+						$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+						foreach ($SubKeyName in $BaseKey.GetSubKeyNames()) {
+							try {
+								$SubKey = $BaseKey.OpenSubKey($SubKeyName, $true)
+								$NameFilter = "^.*\\{0}$" -f $Name
+								Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match $NameFilter }
+							}
+							catch {
+								Write-Host "Access Error on Key [$SubKeyName]... skipping."
+							}
+						}
+					}
+				}
+				else {
+					if ($Path -and (Test-RegistryKey "$RegHive\$Path")) {
+						$NameFilter = "^.*\\{0}$" -f $Name
+						Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match $NameFilter }
+						Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -eq $Name }
+					}
+					else {
+						$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+						foreach ($SubKeyName in $BaseKey.GetSubKeyNames()) {
+							try {
+								$SubKey = $BaseKey.OpenSubKey($SubKeyName, $true)
+								$NameFilter = "^.*\\{0}$" -f $Name
+								Get-RegistryKey -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -match $NameFilter }
+								Get-RegistryValue -Path $SubKey.Name -ComputerName $ComputerName -Recurse | Where-Object { $_.Name -eq $Name }
+							}
+							catch {
+								Write-Host "Access Error on Key [$SubKeyName]... skipping."
+							}
+						}
+					}
+				}
+			}
+			"ByValue" {
+				if ($Path -and (Test-RegistryKey "$RegHive\$Path")) {
+					Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Value -eq $Value }
+				}
+				else {
+					$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+					foreach ($SubKeyName in $BaseKey.GetSubKeyNames()) {
+						try {
+							$SubKey = $BaseKey.OpenSubKey($SubKeyName, $true)
+							Get-RegistryValue -Path "$RegHive\$Path" -ComputerName $ComputerName -Recurse | Where-Object { $_.Value -eq $Value }
+						}
+						catch {
+							Write-Host "Access Error on Key [$SubKeyName]... skipping."
+						}
+					}
+				}
+			}
+		}
+
+		Write-Verbose " [Search-Registry] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Set-RegistryValue
+
+function Set-RegistryValue {
+
+	<#
+	        .Synopsis
 	            Sets a value under the registry key.
-	            
+
 	        .Description
 	            Sets a value under the registry key.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Value to Set.
-	            
-	        .Parameter Value 
+
+	        .Parameter Value
 	            New Value.
-	            
+
 	        .Parameter Type
 	            Type for the Value. Valid Types: Unknown, String (default,) ExpandString, Binary, DWord, MultiString, and Q
 	    word
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to set the Value on.
-	            
+
 	        .Example
 	            Set-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name State -Value "Hi There"
 	            Description
 	            -----------
 	            Sets the Value State and sets the value to "Hi There" under HKLM\SOFTWARE\Adobe\MyKey.
-	            
+
 	        .Example
 	            Set-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name State -Value 0 -ComputerName MyServer1
 	            Description
 	            -----------
 	            Sets the Value State and sets the value to "Hi There" under HKLM\SOFTWARE\Adobe\MyKey on MyServer1.
-	            
+
 	        .Example
 	            Set-RegistryValue HKLM\SOFTWARE\Adobe\MyKey -Name MyDWord -Value 0 -Type DWord
 	            Description
 	            -----------
 	            Sets the DWORD Value MyDWord and sets the value to 0 under HKLM\SOFTWARE\Adobe\MyKey.
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryValue
 	            Remove-RegistryValue
 	            Get-RegistryValue
 	            Test-RegistryValue
-	        
+
 	        .Notes
 	            NAME:      Set-RegistryValue
 	            AUTHOR:    bsonposh
@@ -2369,122 +2194,115 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	        
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Parameter()]
-	        [string]$Value,
-	        
-	        [Parameter()]
-	        [string]$Type,
-	        
-	        [Alias("dnsHostName")]
-	        [Parameter(ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:ComputerName
-	    )
-	    
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [Set-RegistryValue] :: Start Begin"
-	        
-	        Write-Verbose " [Set-RegistryValue] :: `$Path = $Path"
-	        Write-Verbose " [Set-RegistryValue] :: `$Name = $Name"
-	        Write-Verbose " [Set-RegistryValue] :: `$Value = $Value"
-	        
-	        Switch ($Type)
-	        {
-	            "Unknown"       {$ValueType = [Microsoft.Win32.RegistryValueKind]::Unknown;continue}
-	            "String"        {$ValueType = [Microsoft.Win32.RegistryValueKind]::String;continue}
-	            "ExpandString"  {$ValueType = [Microsoft.Win32.RegistryValueKind]::ExpandString;continue}
-	            "Binary"        {$ValueType = [Microsoft.Win32.RegistryValueKind]::Binary;continue}
-	            "DWord"         {$ValueType = [Microsoft.Win32.RegistryValueKind]::DWord;continue}
-	            "MultiString"   {$ValueType = [Microsoft.Win32.RegistryValueKind]::MultiString;continue}
-	            "QWord"         {$ValueType = [Microsoft.Win32.RegistryValueKind]::QWord;continue}
-	            default         {$ValueType = [Microsoft.Win32.RegistryValueKind]::String;continue}
-	        }
-	        Write-Verbose " [Set-RegistryValue] :: `$Type = $Type"
-	        
-	        Write-Verbose " [Set-RegistryValue] :: End Begin"
-	    
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Set-RegistryValue] :: Start Process"
-	        
-	        Write-Verbose " [Set-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
-	        $Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
-	        Write-Verbose " [Set-RegistryValue] :: Get-RegistryKey returned $Key"
-	        Write-Verbose " [Set-RegistryValue] :: Setting Value for [$Name]"
-	        if($PSCmdlet.ShouldProcess($ComputerName,"Creating Value [$Name] under $Path with value [$Value]"))
-	        {
-	            if($Value)
-	            {
-	                $Key.SetValue($Name,$Value,$ValueType)
-	            }
-	            else
-	            {
-	                $Key.SetValue($Name,$ValueType)
-	            }
-	            Write-Verbose " [Set-RegistryValue] :: Returning New Key: Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName"
-	            Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName
-	        }
-	        Write-Verbose " [Set-RegistryValue] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Parameter()]
+		[string]$Value,
+
+		[Parameter()]
+		[string]$Type,
+
+		[Alias("dnsHostName")]
+		[Parameter(ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:ComputerName
+	)
+
+	Begin {
+
+		Write-Verbose " [Set-RegistryValue] :: Start Begin"
+
+		Write-Verbose " [Set-RegistryValue] :: `$Path = $Path"
+		Write-Verbose " [Set-RegistryValue] :: `$Name = $Name"
+		Write-Verbose " [Set-RegistryValue] :: `$Value = $Value"
+
+		Switch ($Type) {
+			"Unknown" { $ValueType = [Microsoft.Win32.RegistryValueKind]::Unknown; continue }
+			"String" { $ValueType = [Microsoft.Win32.RegistryValueKind]::String; continue }
+			"ExpandString" { $ValueType = [Microsoft.Win32.RegistryValueKind]::ExpandString; continue }
+			"Binary" { $ValueType = [Microsoft.Win32.RegistryValueKind]::Binary; continue }
+			"DWord" { $ValueType = [Microsoft.Win32.RegistryValueKind]::DWord; continue }
+			"MultiString" { $ValueType = [Microsoft.Win32.RegistryValueKind]::MultiString; continue }
+			"QWord" { $ValueType = [Microsoft.Win32.RegistryValueKind]::QWord; continue }
+			default { $ValueType = [Microsoft.Win32.RegistryValueKind]::String; continue }
+		}
+		Write-Verbose " [Set-RegistryValue] :: `$Type = $Type"
+
+		Write-Verbose " [Set-RegistryValue] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Test-RegistryKey 
-	
-	function Test-RegistryKey 
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Set-RegistryValue] :: Start Process"
+
+		Write-Verbose " [Set-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
+		$Key = Get-RegistryKey -Path $path -ComputerName $ComputerName -ReadWrite
+		Write-Verbose " [Set-RegistryValue] :: Get-RegistryKey returned $Key"
+		Write-Verbose " [Set-RegistryValue] :: Setting Value for [$Name]"
+		if ($PSCmdlet.ShouldProcess($ComputerName, "Creating Value [$Name] under $Path with value [$Value]")) {
+			if ($Value) {
+				$Key.SetValue($Name, $Value, $ValueType)
+			}
+			else {
+				$Key.SetValue($Name, $ValueType)
+			}
+			Write-Verbose " [Set-RegistryValue] :: Returning New Key: Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName"
+			Get-RegistryValue -Path $path -Name $Name -ComputerName $ComputerName
+		}
+		Write-Verbose " [Set-RegistryValue] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Test-RegistryKey
+
+function Test-RegistryKey {
+
+	<#
+	        .Synopsis
 	            Test for given the registry key.
-	            
+
 	        .Description
 	            Test for given the registry key.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to test the registry key on.
-	            
+
 	        .Example
 	            Test-registrykey HKLM\Software\Adobe
 	            Description
 	            -----------
 	            Returns $True if the Registry key for HKLM\Software\Adobe
-	            
+
 	        .Example
 	            Test-registrykey HKLM\Software\Adobe -ComputerName MyServer1
 	            Description
 	            -----------
 	            Returns $True if the Registry key for HKLM\Software\Adobe on MyServer1
-	                    
+
 	        .OUTPUTS
 	            System.Boolean
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryKey
 	            Remove-RegistryKey
 	            Get-RegistryKey
-	        
+
 	        .Notes
 	            NAME:      Test-RegistryKey
 	            AUTHOR:    bsonposh
@@ -2492,461 +2310,423 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding(SupportsShouldProcess=$true)]
-	    Param(
-	    
-	        [Parameter(ValueFromPipelineByPropertyName=$True,mandatory=$true)]
-	        [string]$Path,
-	        
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	        
-	    )
-	    
-	    Begin 
-	    {
-	    
-	        Write-Verbose " [Test-RegistryKey] :: Start Begin"
-	        
-	        Write-Verbose " [Test-RegistryKey] :: `$Path = $Path"
-	        Write-Verbose " [Test-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
-	        $PathParts = $Path -split "\\|/",0,"RegexMatch"
-	        $Hive = $PathParts[0]
-	        $KeyPath = $PathParts[1..$PathParts.count] -join "\"
-	        Write-Verbose " [Test-RegistryKey] :: `$Hive = $Hive"
-	        Write-Verbose " [Test-RegistryKey] :: `$KeyPath = $KeyPath"
-	        
-	        Write-Verbose " [Test-RegistryKey] :: End Begin"
-	    
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Test-RegistryKey] :: Start Process"
-	        
-	        Write-Verbose " [Test-RegistryKey] :: `$ComputerName = $ComputerName"
-	        
-	        $RegHive = Get-RegistryHive $hive
-	        
-	        if($RegHive -eq 1)
-	        {
-	            Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
-	        }
-	        else
-	        {
-	            Write-Verbose " [Test-RegistryKey] :: `$RegHive = $RegHive"
-	            
-	            $BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive,$ComputerName)
-	            Write-Verbose " [Test-RegistryKey] :: `$BaseKey = $BaseKey"
-	            
-	            Try
-	            {
-	                $Key = $BaseKey.OpenSubKey($KeyPath) 
-	                if($Key)
-	                {
-	                    $true
-	                }
-	                else
-	                {
-	                    $false
-	                }
-	            }
-	            catch
-	            {
-	                $false
-	            }
-	        }
-	        Write-Verbose " [Test-RegistryKey] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding(SupportsShouldProcess = $true)]
+	Param(
+
+		[Parameter(ValueFromPipelineByPropertyName = $True, mandatory = $true)]
+		[string]$Path,
+
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+
+	)
+
+	Begin {
+
+		Write-Verbose " [Test-RegistryKey] :: Start Begin"
+
+		Write-Verbose " [Test-RegistryKey] :: `$Path = $Path"
+		Write-Verbose " [Test-RegistryKey] :: Getting `$Hive and `$KeyPath from $Path "
+		$PathParts = $Path -split "\\|/", 0, "RegexMatch"
+		$Hive = $PathParts[0]
+		$KeyPath = $PathParts[1..$PathParts.count] -join "\"
+		Write-Verbose " [Test-RegistryKey] :: `$Hive = $Hive"
+		Write-Verbose " [Test-RegistryKey] :: `$KeyPath = $KeyPath"
+
+		Write-Verbose " [Test-RegistryKey] :: End Begin"
+
 	}
-	    
-	#endregion 
-	
-	#region Test-RegistryValue 
-	
-	function Test-RegistryValue
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Test-RegistryKey] :: Start Process"
+
+		Write-Verbose " [Test-RegistryKey] :: `$ComputerName = $ComputerName"
+
+		$RegHive = Get-RegistryHive $hive
+
+		if ($RegHive -eq 1) {
+			Write-Host "Invalid Path: $Path, Registry Hive [$hive] is invalid!" -ForegroundColor Red
+		}
+		else {
+			Write-Verbose " [Test-RegistryKey] :: `$RegHive = $RegHive"
+
+			$BaseKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey($RegHive, $ComputerName)
+			Write-Verbose " [Test-RegistryKey] :: `$BaseKey = $BaseKey"
+
+			Try {
+				$Key = $BaseKey.OpenSubKey($KeyPath)
+				if ($Key) {
+					$true
+				}
+				else {
+					$false
+				}
+			}
+			catch {
+				$false
+			}
+		}
+		Write-Verbose " [Test-RegistryKey] :: End Process"
+
+	}
+}
+
+#endregion
+
+#region Test-RegistryValue
+
+function Test-RegistryValue {
+
+	<#
+	        .Synopsis
 	            Test the value for given the registry value.
-	            
+
 	        .Description
 	            Test the value for given the registry value.
-	                        
-	        .Parameter Path 
+
+	        .Parameter Path
 	            Path to the key that contains the value.
-	            
-	        .Parameter Name 
+
+	        .Parameter Name
 	            Name of the Value to check.
-	            
-	        .Parameter Value 
+
+	        .Parameter Value
 	            Value to check for.
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to test.
-	            
+
 	        .Example
 	            Test-RegistryValue HKLM\SOFTWARE\Adobe\SwInstall -Name State -Value 0
 	            Description
 	            -----------
 	            Returns $True if the value of State under HKLM\SOFTWARE\Adobe\SwInstall is 0
-	            
+
 	        .Example
 	            Test-RegistryValue HKLM\Software\Adobe -ComputerName MyServer1
 	            Description
 	            -----------
 	            Returns $True if the value of State under HKLM\SOFTWARE\Adobe\SwInstall is 0 on MyServer1
-	                    
+
 	        .OUTPUTS
 	            System.Boolean
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            New-RegistryValue
 	            Remove-RegistryValue
 	            Get-RegistryValue
-	        
-	        .Notes    
+
+	        .Notes
 	            NAME:      Test-RegistryValue
 	            AUTHOR:    bsonposh
 	            Website:   http://www.bsonposh.com
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	    
-	        [Parameter(mandatory=$true)]
-	        [string]$Path,
-	    
-	        [Parameter(mandatory=$true)]
-	        [string]$Name,
-	        
-	        [Parameter()]
-	        [string]$Value,
-	        
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	        
-	    )
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Test-RegistryValue] :: Begin Process"
-	        Write-Verbose " [Test-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
-	        $Key = Get-RegistryKey -Path $path -ComputerName $ComputerName 
-	        Write-Verbose " [Test-RegistryValue] :: Get-RegistryKey returned $Key"
-	        if($Value)
-	        {
-	            try
-	            {
-	                $CurrentValue = $Key.GetValue($Name)
-	                $Value -eq $CurrentValue
-	            }
-	            catch
-	            {
-	                $false
-	            }
-	        }
-	        else
-	        {
-	            try
-	            {
-	                $CurrentValue = $Key.GetValue($Name)
-	                if($CurrentValue){$True}else{$false}
-	            }
-	            catch
-	            {
-	                $false
-	            }
-	        }
-	        Write-Verbose " [Test-RegistryValue] :: End Process"
-	    
-	    }
-	}
-	    
-	#endregion 
-	
-	#region Get-DiskRelationship
-	function Get-DiskRelationship {
-	param (
-	    [string]$computername = "localhost"
+
+	[Cmdletbinding()]
+	Param(
+
+		[Parameter(mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(mandatory = $true)]
+		[string]$Name,
+
+		[Parameter()]
+		[string]$Value,
+
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+
 	)
-	    Get-WmiObject -Class Win32_DiskDrive -ComputerName $computername | foreach {
-	        "`n {0} {1}" -f $($_.Name), $($_.Model)
-	
-	        $query = "ASSOCIATORS OF {Win32_DiskDrive.DeviceID='" `
-	         + $_.DeviceID + "'} WHERE ResultClass=Win32_DiskPartition"
-	         
-	        Get-WmiObject -Query $query -ComputerName $computername | foreach {
-	            ""
-	            "Name             : {0}" -f $_.Name
-	            "Description      : {0}" -f $_.Description
-	            "PrimaryPartition : {0}" -f $_.PrimaryPartition
-	        
-	            $query2 = "ASSOCIATORS OF {Win32_DiskPartition.DeviceID='" `
-	            + $_.DeviceID + "'} WHERE ResultClass=Win32_LogicalDisk"
-	                
-	            Get-WmiObject -Query $query2 -ComputerName $computername | Format-List Name,
-	            @{Name="Disk Size (GB)"; Expression={"{0:F3}" -f $($_.Size/1GB)}},
-	            @{Name="Free Space (GB)"; Expression={"{0:F3}" -f $($_.FreeSpace/1GB)}}
-	        
-	        }
-	    }
+
+	Process {
+
+		Write-Verbose " [Test-RegistryValue] :: Begin Process"
+		Write-Verbose " [Test-RegistryValue] :: Calling Get-RegistryKey -Path $path -ComputerName $ComputerName"
+		$Key = Get-RegistryKey -Path $path -ComputerName $ComputerName
+		Write-Verbose " [Test-RegistryValue] :: Get-RegistryKey returned $Key"
+		if ($Value) {
+			try {
+				$CurrentValue = $Key.GetValue($Name)
+				$Value -eq $CurrentValue
+			}
+			catch {
+				$false
+			}
+		}
+		else {
+			try {
+				$CurrentValue = $Key.GetValue($Name)
+				if ($CurrentValue) { $True }else { $false }
+			}
+			catch {
+				$false
+			}
+		}
+		Write-Verbose " [Test-RegistryValue] :: End Process"
+
 	}
-	#endregion
-	
-	#region Get-MountPoint
-	function Get-MountPoint {
+}
+
+#endregion
+
+#region Get-DiskRelationship
+function Get-DiskRelationship {
 	param (
-	    [string]$computername = "localhost"
+		[string]$computername = "localhost"
 	)
-	    Get-WmiObject -Class Win32_MountPoint -ComputerName $computername | 
-	    where {$_.Directory -like 'Win32_Directory.Name="*"'} | 
-	    foreach {
-	        $vol = $_.Volume
-	        Get-WmiObject -Class Win32_Volume -ComputerName $computername | where {$_.__RELPATH -eq $vol} | 
-	        Select @{Name="Folder"; Expression={$_.Caption}}, 
-	        @{Name="Size (GB)"; Expression={"{0:F3}" -f $($_.Capacity / 1GB)}},
-	        @{Name="Free (GB)"; Expression={"{0:F3}" -f $($_.FreeSpace / 1GB)}},
-	        @{Name="%Free"; Expression={"{0:F2}" -f $(($_.FreeSpace/$_.Capacity)*100)}}|ft -AutoSize
-	    }
+	Get-WmiObject -Class Win32_DiskDrive -ComputerName $computername | ForEach-Object {
+		"`n {0} {1}" -f $($_.Name), $($_.Model)
+
+		$query = "ASSOCIATORS OF {Win32_DiskDrive.DeviceID='" `
+			+ $_.DeviceID + "'} WHERE ResultClass=Win32_DiskPartition"
+
+		Get-WmiObject -Query $query -ComputerName $computername | ForEach-Object {
+			""
+			"Name             : {0}" -f $_.Name
+			"Description      : {0}" -f $_.Description
+			"PrimaryPartition : {0}" -f $_.PrimaryPartition
+
+			$query2 = "ASSOCIATORS OF {Win32_DiskPartition.DeviceID='" `
+				+ $_.DeviceID + "'} WHERE ResultClass=Win32_LogicalDisk"
+
+			Get-WmiObject -Query $query2 -ComputerName $computername | Format-List Name,
+			@{Name = "Disk Size (GB)"; Expression = { "{0:F3}" -f $($_.Size / 1GB) } },
+			@{Name = "Free Space (GB)"; Expression = { "{0:F3}" -f $($_.FreeSpace / 1GB) } }
+
+		}
 	}
-	#endregion
-	
-	#region Get-MappedDrive
-	function Get-MappedDrive {
+}
+#endregion
+
+#region Get-MountPoint
+function Get-MountPoint {
 	param (
-	    [string]$computername = "localhost"
+		[string]$computername = "localhost"
 	)
-	    Get-WmiObject -Class Win32_MappedLogicalDisk -ComputerName $computername | 
-	    Format-List DeviceId, VolumeName, SessionID, Size, FreeSpace, ProviderName
-	}
-	#endregion
-	
-	#region Test-Host 
-	
-	function Test-Host
-	{
-	        
-	    <#
-	        .Synopsis 
+	Get-WmiObject -Class Win32_MountPoint -ComputerName $computername |
+		Where-Object { $_.Directory -like 'Win32_Directory.Name="*"' } |
+			ForEach-Object {
+				$vol = $_.Volume
+				Get-WmiObject -Class Win32_Volume -ComputerName $computername | Where-Object { $_.__RELPATH -eq $vol } |
+					Select-Object @{Name = "Folder"; Expression = { $_.Caption } },
+					@{Name = "Size (GB)"; Expression = { "{0:F3}" -f $($_.Capacity / 1GB) } },
+					@{Name = "Free (GB)"; Expression = { "{0:F3}" -f $($_.FreeSpace / 1GB) } },
+					@{Name = "%Free"; Expression = { "{0:F2}" -f $(($_.FreeSpace / $_.Capacity) * 100) } } | Format-Table -AutoSize
+				}
+}
+#endregion
+
+#region Get-MappedDrive
+function Get-MappedDrive {
+	param (
+		[string]$computername = "localhost"
+	)
+	Get-WmiObject -Class Win32_MappedLogicalDisk -ComputerName $computername |
+		Format-List DeviceId, VolumeName, SessionID, Size, FreeSpace, ProviderName
+}
+#endregion
+
+#region Test-Host
+
+function Test-Host {
+
+	<#
+	        .Synopsis
 	            Test a host for connectivity using either WMI ping or TCP port
-	            
+
 	        .Description
 	            Allows you to test a host for connectivity before further processing
-	            
+
 	        .Parameter Server
 	            Name of the Server to Process.
-	            
+
 	        .Parameter TCPPort
 	            TCP Port to connect to. (default 135)
-	            
+
 	        .Parameter Timeout
 	            Timeout for the TCP connection (default 1 sec)
-	            
+
 	        .Parameter Property
 	            Name of the Property that contains the value to test.
-	            
+
 	        .Example
 	            cat ServerFile.txt | Test-Host | Invoke-DoSomething
 	            Description
 	            -----------
 	            To test a list of hosts.
-	            
+
 	        .Example
 	            cat ServerFile.txt | Test-Host -tcp 80 | Invoke-DoSomething
 	            Description
 	            -----------
 	            To test a list of hosts against port 80.
-	            
+
 	        .Example
 	            Get-ADComputer | Test-Host -property dnsHostname | Invoke-DoSomething
 	            Description
 	            -----------
 	            To test the output of Get-ADComputer using the dnshostname property
-	            
-	            
+
 	        .OUTPUTS
 	            System.Object
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Test-Port
-	            
+
 	        NAME:      Test-Host
 	        AUTHOR:    YetiCentral\bshell
 	        Website:   www.bsonposh.com
 	        LASTEDIT:  02/04/2009 18:25:15
 	        #Requires -Version 2.0
 	    #>
-	    
-	    [CmdletBinding()]
-	    
-	    Param(
-	    
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true,Mandatory=$True)]
-	        [string]$ComputerName,
-	        
-	        [Parameter()]
-	        [int]$TCPPort=80,
-	        
-	        [Parameter()]
-	        [int]$timeout=3000,
-	        
-	        [Parameter()]
-	        [string]$property
-	        
-	    )
-	    Begin 
-	    {
-	    
-	        function PingServer 
-	        {
-	            Param($MyHost)
-	            $ErrorActionPreference = "SilentlyContinue"
-	            Write-Verbose " [PingServer] :: Pinging [$MyHost]"
-	            try
-	            {
-	                $pingresult = Get-WmiObject win32_pingstatus -f "address='$MyHost'"
-	                $ResultCode = $pingresult.statuscode
-	                Write-Verbose " [PingServer] :: Ping returned $ResultCode"
-	                if($ResultCode -eq 0) {$true} else {$false}
-	            }
-	            catch
-	            {
-	                Write-Verbose " [PingServer] :: Ping Failed with Error: ${error[0]}"
-	                $false
-	            }
-	        }
-	    
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Test-Host] :: Begin Process"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        Write-Verbose " [Test-Host] :: ComputerName   : $ComputerName"
-	        if($TCPPort)
-	        {
-	            Write-Verbose " [Test-Host] :: Timeout  : $timeout"
-	            Write-Verbose " [Test-Host] :: Port     : $TCPPort"
-	            if($property)
-	            {
-	                Write-Verbose " [Test-Host] :: Property : $Property"
-	                $Result = Test-Port $_.$property -tcp $TCPPort -timeout $timeout
-	                if($Result)
-	                {
-	                    if($_){ $_ }else{ $ComputerName }
-	                }
-	            }
-	            else
-	            {
-	                Write-Verbose " [Test-Host] :: Running - 'Test-Port $ComputerName -tcp $TCPPort -timeout $timeout'"
-	                $Result = Test-Port $ComputerName -tcp $TCPPort -timeout $timeout
-	                if($Result)
-	                {
-	                    if($_){ $_ }else{ $ComputerName }
-	                } 
-	            }
-	        }
-	        else
-	        {
-	            if($property)
-	            {
-	                Write-Verbose " [Test-Host] :: Property : $Property"
-	                try
-	                {
-	                    if(PingServer $_.$property)
-	                    {
-	                        if($_){ $_ }else{ $ComputerName }
-	                    } 
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Test-Host] :: $($_.$property) Failed Ping"
-	                }
-	            }
-	            else
-	            {
-	                Write-Verbose " [Test-Host] :: Simple Ping"
-	                try
-	                {
-	                    if(PingServer $ComputerName){$ComputerName}
-	                }
-	                catch
-	                {
-	                    Write-Verbose " [Test-Host] :: $ComputerName Failed Ping"
-	                }
-	            }
-	        }
-	        Write-Verbose " [Test-Host] :: End Process"
-	    
-	    }
-	    
+
+	[CmdletBinding()]
+
+	Param(
+
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true, Mandatory = $True)]
+		[string]$ComputerName,
+
+		[Parameter()]
+		[int]$TCPPort = 80,
+
+		[Parameter()]
+		[int]$timeout = 3000,
+
+		[Parameter()]
+		[string]$property
+
+	)
+	Begin {
+
+		function PingServer {
+			Param($MyHost)
+			$ErrorActionPreference = "SilentlyContinue"
+			Write-Verbose " [PingServer] :: Pinging [$MyHost]"
+			try {
+				$pingresult = Get-WmiObject win32_pingstatus -f "address='$MyHost'"
+				$ResultCode = $pingresult.statuscode
+				Write-Verbose " [PingServer] :: Ping returned $ResultCode"
+				if ($ResultCode -eq 0) { $true } else { $false }
+			}
+			catch {
+				Write-Verbose " [PingServer] :: Ping Failed with Error: ${error[0]}"
+				$false
+			}
+		}
+
 	}
-	    
-	#endregion 
-	
-	#region Test-Port 
-	
-	function Test-Port
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	Process {
+
+		Write-Verbose " [Test-Host] :: Begin Process"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		Write-Verbose " [Test-Host] :: ComputerName   : $ComputerName"
+		if ($TCPPort) {
+			Write-Verbose " [Test-Host] :: Timeout  : $timeout"
+			Write-Verbose " [Test-Host] :: Port     : $TCPPort"
+			if ($property) {
+				Write-Verbose " [Test-Host] :: Property : $Property"
+				$Result = Test-Port $_.$property -tcp $TCPPort -timeout $timeout
+				if ($Result) {
+					if ($_) { $_ }else { $ComputerName }
+				}
+			}
+			else {
+				Write-Verbose " [Test-Host] :: Running - 'Test-Port $ComputerName -tcp $TCPPort -timeout $timeout'"
+				$Result = Test-Port $ComputerName -tcp $TCPPort -timeout $timeout
+				if ($Result) {
+					if ($_) { $_ }else { $ComputerName }
+				}
+			}
+		}
+		else {
+			if ($property) {
+				Write-Verbose " [Test-Host] :: Property : $Property"
+				try {
+					if (PingServer $_.$property) {
+						if ($_) { $_ }else { $ComputerName }
+					}
+				}
+				catch {
+					Write-Verbose " [Test-Host] :: $($_.$property) Failed Ping"
+				}
+			}
+			else {
+				Write-Verbose " [Test-Host] :: Simple Ping"
+				try {
+					if (PingServer $ComputerName) { $ComputerName }
+				}
+				catch {
+					Write-Verbose " [Test-Host] :: $ComputerName Failed Ping"
+				}
+			}
+		}
+		Write-Verbose " [Test-Host] :: End Process"
+
+	}
+
+}
+
+#endregion
+
+#region Test-Port
+
+function Test-Port {
+
+	<#
+	        .Synopsis
 	            Test a host to see if the specified port is open.
-	            
+
 	        .Description
 	            Test a host to see if the specified port is open.
-	                        
-	        .Parameter TCPPort 
+
+	        .Parameter TCPPort
 	            Port to test (Default 135.)
-	            
-	        .Parameter Timeout 
+
+	        .Parameter Timeout
 	            How long to wait (in milliseconds) for the TCP connection (Default 3000.)
-	            
-	        .Parameter ComputerName 
+
+	        .Parameter ComputerName
 	            Computer to test the port against (Default in localhost.)
-	            
+
 	        .Example
 	            Test-Port -tcp 3389
 	            Description
 	            -----------
 	            Returns $True if the localhost is listening on 3389
-	            
+
 	        .Example
 	            Test-Port -tcp 3389 -ComputerName MyServer1
 	            Description
 	            -----------
 	            Returns $True if MyServer1 is listening on 3389
-	                    
+
 	        .OUTPUTS
 	            System.Boolean
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Test-Host
 	            Wait-Port
-	            
+
 	        .Notes
 	            NAME:      Test-Port
 	            AUTHOR:    bsonposh
@@ -2954,509 +2734,468 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [Parameter()]
-	        [int]$TCPport = 135,
-	        [Parameter()]
-	        [int]$TimeOut = 3000,
-	        [Alias("dnsHostName")]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [String]$ComputerName = $env:COMPUTERNAME
-	    )
-	    Begin 
-	    {
-	        Write-Verbose " [Test-Port] :: Start Script"
-	        Write-Verbose " [Test-Port] :: Setting Error state = 0"
-	    }
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Test-Port] :: Creating [system.Net.Sockets.TcpClient] instance"
-	        $tcpclient = New-Object system.Net.Sockets.TcpClient
-	        
-	        Write-Verbose " [Test-Port] :: Calling BeginConnect($ComputerName,$TCPport,$null,$null)"
-	        try
-	        {
-	            $iar = $tcpclient.BeginConnect($ComputerName,$TCPport,$null,$null)
-	            Write-Verbose " [Test-Port] :: Waiting for timeout [$timeout]"
-	            $wait = $iar.AsyncWaitHandle.WaitOne($TimeOut,$false)
-	        }
-	        catch [System.Net.Sockets.SocketException]
-	        {
-	            Write-Verbose " [Test-Port] :: Exception: $($_.exception.message)"
-	            Write-Verbose " [Test-Port] :: End"
-	            return $false
-	        }
-	        catch
-	        {
-	            Write-Verbose " [Test-Port] :: General Exception"
-	            Write-Verbose " [Test-Port] :: End"
-	            return $false
-	        }
-	    
-	        if(!$wait)
-	        {
-	            $tcpclient.Close()
-	            Write-Verbose " [Test-Port] :: Connection Timeout"
-	            Write-Verbose " [Test-Port] :: End"
-	            return $false
-	        }
-	        else
-	        {
-	            Write-Verbose " [Test-Port] :: Closing TCP Socket"
-	            try
-	            {
-	                $tcpclient.EndConnect($iar) | out-Null
-	                $tcpclient.Close()
-	            }
-	            catch
-	            {
-	                Write-Verbose " [Test-Port] :: Unable to Close TCP Socket"
-	            }
-	            $true
-	        }
-	    }
-	    End 
-	    {
-	        Write-Verbose " [Test-Port] :: End Script"
-	    }
-	}  
-	#endregion 
-	
-	#region Get-MemoryConfiguration 
-	
-	function Get-MemoryConfiguration
-	{
-	        
-	    <#
-	        .Synopsis 
+
+	[Cmdletbinding()]
+	Param(
+		[Parameter()]
+		[int]$TCPport = 135,
+		[Parameter()]
+		[int]$TimeOut = 3000,
+		[Alias("dnsHostName")]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[String]$ComputerName = $env:COMPUTERNAME
+	)
+	Begin {
+		Write-Verbose " [Test-Port] :: Start Script"
+		Write-Verbose " [Test-Port] :: Setting Error state = 0"
+	}
+
+	Process {
+
+		Write-Verbose " [Test-Port] :: Creating [system.Net.Sockets.TcpClient] instance"
+		$tcpclient = New-Object system.Net.Sockets.TcpClient
+
+		Write-Verbose " [Test-Port] :: Calling BeginConnect($ComputerName,$TCPport,$null,$null)"
+		try {
+			$iar = $tcpclient.BeginConnect($ComputerName, $TCPport, $null, $null)
+			Write-Verbose " [Test-Port] :: Waiting for timeout [$timeout]"
+			$wait = $iar.AsyncWaitHandle.WaitOne($TimeOut, $false)
+		}
+		catch [System.Net.Sockets.SocketException] {
+			Write-Verbose " [Test-Port] :: Exception: $($_.exception.message)"
+			Write-Verbose " [Test-Port] :: End"
+			return $false
+		}
+		catch {
+			Write-Verbose " [Test-Port] :: General Exception"
+			Write-Verbose " [Test-Port] :: End"
+			return $false
+		}
+
+		if (!$wait) {
+			$tcpclient.Close()
+			Write-Verbose " [Test-Port] :: Connection Timeout"
+			Write-Verbose " [Test-Port] :: End"
+			return $false
+		}
+		else {
+			Write-Verbose " [Test-Port] :: Closing TCP Socket"
+			try {
+				$tcpclient.EndConnect($iar) | Out-Null
+				$tcpclient.Close()
+			}
+			catch {
+				Write-Verbose " [Test-Port] :: Unable to Close TCP Socket"
+			}
+			$true
+		}
+	}
+	End {
+		Write-Verbose " [Test-Port] :: End Script"
+	}
+}
+#endregion
+
+#region Get-MemoryConfiguration
+
+function Get-MemoryConfiguration {
+
+	<#
+	        .Synopsis
 	            Gets the Memory Config for specified host.
-	            
+
 	        .Description
 	            Gets the Memory Config for specified host.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the Memory Config from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-MemoryConfiguration
 	            Description
 	            -----------
 	            Gets Memory Config from local machine
-	    
+
 	        .Example
 	            Get-MemoryConfiguration -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets Memory Config from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-MemoryConfiguration
 	            Description
 	            -----------
 	            Gets Memory Config for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .Notes
-	            NAME:      Get-MemoryConfiguration 
+	            NAME:      Get-MemoryConfiguration
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Get-MemoryConfiguration] :: Begin Process"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            Write-Verbose " [Get-MemoryConfiguration] :: Processing $ComputerName"
-	            try
-	            {
-	                $MemorySlots = Get-WmiObject Win32_PhysicalMemory -ComputerName $ComputerName -ea STOP
-	                foreach($Dimm in $MemorySlots)
-	                {
-	                    $myobj = @{}
-	                    $myobj.ComputerName = $ComputerName
-	                    $myobj.Description  = $Dimm.Tag
-	                    $myobj.Slot         = $Dimm.DeviceLocator
-	                    $myobj.Speed        = $Dimm.Speed
-	                    $myobj.SizeGB       = $Dimm.Capacity/1gb
-	                    
-	                    $obj = New-Object PSObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.MemoryConfiguration')
-	                    $obj
-	                }
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }    
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	        Write-Verbose " [Get-MemoryConfiguration] :: End Process"
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+
+		Write-Verbose " [Get-MemoryConfiguration] :: Begin Process"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			Write-Verbose " [Get-MemoryConfiguration] :: Processing $ComputerName"
+			try {
+				$MemorySlots = Get-WmiObject Win32_PhysicalMemory -ComputerName $ComputerName -ea STOP
+				foreach ($Dimm in $MemorySlots) {
+					$myobj = @{}
+					$myobj.ComputerName = $ComputerName
+					$myobj.Description = $Dimm.Tag
+					$myobj.Slot = $Dimm.DeviceLocator
+					$myobj.Speed = $Dimm.Speed
+					$myobj.SizeGB = $Dimm.Capacity / 1gb
+
+					$obj = New-Object PSObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.MemoryConfiguration')
+					$obj
+				}
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+		Write-Verbose " [Get-MemoryConfiguration] :: End Process"
+
 	}
-	    
-	#endregion 
-	
-	#region Get-NetStat 
-	            #Need to Implement
-	            #[Parameter()]
-	            #[int]$ID,
-	            #[Parameter()]
-	            #[int]$RemotePort,
-	            #[Parameter()]
-	            #[string]$RemoteAddress,
-	function Get-NetStat
-	{
-	
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Get-NetStat
+#Need to Implement
+#[Parameter()]
+#[int]$ID,
+#[Parameter()]
+#[int]$RemotePort,
+#[Parameter()]
+#[string]$RemoteAddress,
+function Get-NetStat {
+
+	<#
+	        .Synopsis
 	            Get the Network stats of the local host.
-	            
+
 	        .Description
 	            Get the Network stats of the local host.
-	            
+
 	        .Parameter ProcessName
 	            Name of the Process to get Network stats for.
-	        
+
 	        .Parameter State
 	            State to return: Valid Values are: "LISTENING", "ESTABLISHED", "CLOSE_WAIT", or "TIME_WAIT"
-	
+
 	        .Parameter Interval
 	            Number of times you want to run netstat. Cannot be used with Loop.
-	            
+
 	        .Parameter Sleep
 	            Time between calls to netstat. Used with Interval or Loop.
-	            
+
 	        .Parameter Loop
 	            Loops netstat calls until you press ctrl-c. Cannot be used with Internval.
-	            
+
 	        .Example
 	            Get-NetStat
 	            Description
 	            -----------
 	            Returns all Network stat information on the localhost
-	        
+
 	        .Example
 	            Get-NetStat -ProcessName chrome
 	            Description
 	            -----------
 	            Returns all Network stat information on the localhost for process chrome.
-	            
+
 	        .Example
 	            Get-NetStat -State ESTABLISHED
 	            Description
 	            -----------
 	            Returns all the established connections on the localhost
-	            
+
 	        .Example
 	            Get-NetStat -State ESTABLISHED -Loop
 	            Description
 	            -----------
 	            Loops established connections.
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	        
+
 	        .Notes
 	            NAME:      Get-NetStat
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
-	
+
 	    #>
-	    
-	    [Cmdletbinding(DefaultParameterSetName="All")]
-	    Param(
-	        [Parameter()]
-	        [string]$ProcessName,
-	
-	        [Parameter()]
-	        [ValidateSet("LISTENING", "ESTABLISHED", "CLOSE_WAIT","TIME_WAIT")]
-	        [string]$State,
-	        
-	        [Parameter(ParameterSetName="Interval")]
-	        [int]$Interval,
-	        
-	        [Parameter()]
-	        [int]$Sleep = 1,
-	        
-	        [Parameter(ParameterSetName="Loop")]
-	        [switch]$Loop
-	    )
-	
-	    function Parse-Netstat ($NetStat)
-	    {
-	        Write-Verbose " [Parse-Netstat] :: Parsing Netstat results"
-	        switch -regex ($NetStat)
-	        {
-	            $RegEx  
-	            {
-	                Write-Verbose " [Parse-Netstat] :: creating Custom object"
-	                $myobj = @{
-	                    Protocol      = $matches.Protocol
-	                    LocalAddress  = $matches.LocalAddress.split(":")[0]
-	                    LocalPort     = $matches.LocalAddress.split(":")[1]
-	                    RemoteAddress = $matches.RemoteAddress.split(":")[0]
-	                    RemotePort    = $matches.RemoteAddress.split(":")[1]
-	                    State         = $matches.State
-	                    ProcessID     = $matches.PID
-	                    ProcessName   = Get-Process -id $matches.PID -ea 0 | %{$_.name}
-	                }
-	                
-	                $obj = New-Object PSCustomObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.NetStatInfo')
-	                Write-Verbose " [Parse-Netstat] :: Created object for [$($obj.LocalAddress):$($obj.LocalPort)]"
-	                
-	                if($ProcessName)
-	                {
-	                    $obj | where{$_.ProcessName -eq $ProcessName}
-	                }
-	                elseif($State)
-	                {
-	                    $obj | where{$_.State -eq $State}
-	                }
-	                else
-	                {
-	                    $obj
-	                }
-	                
-	            }
-	        }
-	    }
-	    
-	    [RegEX]$RegEx = '\s+(?<Protocol>\S+)\s+(?<LocalAddress>\S+)\s+(?<RemoteAddress>\S+)\s+(?<State>\S+)\s+(?<PID>\S+)'
-	    $Connections = @{}
-	    
-	    switch -exact ($pscmdlet.ParameterSetName)
-	    {    
-	        "All"           {
-	                            Write-Verbose " [Get-NetStat] :: ParameterSet - ALL"
-	                            $NetStatResults = netstat -ano | ?{$_ -match "(TCP|UDP)\s+\d"}
-	                            Parse-Netstat $NetStatResults
-	                        }
-	        "Interval"      {
-	                            Write-Verbose " [Get-NetStat] :: ParameterSet - Interval"
-	                            for($i = 1 ; $i -le $Interval ; $i++)
-	                            {
-	                                Start-Sleep $Sleep
-	                                $NetStatResults = netstat -ano | ?{$_ -match "(TCP|UDP)\s+\d"}
-	                                Parse-Netstat $NetStatResults | Out-String
-	                            }
-	                        }
-	        "Loop"          {
-	                            Write-Verbose " [Get-NetStat] :: ParameterSet - Loop"
-	                            Write-Host
-	                            Write-Host "Protocol LocalAddress  LocalPort RemoteAddress  RemotePort State       ProcessName   PID"
-	                            Write-Host "-------- ------------  --------- -------------  ---------- -----       -----------   ---" -ForegroundColor White
-	                            $oldPos = $Host.UI.RawUI.CursorPosition
-	                            [console]::TreatControlCAsInput = $true
-	                            while($true)
-	                            {
-	                                Write-Verbose " [Get-NetStat] :: Getting Netstat data"
-	                                $NetStatResults = netstat -ano | ?{$_ -match "(TCP|UDP)\s+\d"}
-	                                Write-Verbose " [Get-NetStat] :: Getting Netstat data from Netstat"
-	                                $Results = Parse-Netstat $NetStatResults 
-	                                Write-Verbose " [Get-NetStat] :: Parse-NetStat returned $($results.count) results"
-	                                foreach($Result in $Results)
-	                                {
-	                                    $Key = $Result.LocalPort
-	                                    $Value = $Result.ProcessID
-	                                    $msg = "{0,-9}{1,-14}{2,-10}{3,-15}{4,-11}{5,-12}{6,-14}{7,-10}" -f  $Result.Protocol,$Result.LocalAddress,$Result.LocalPort,
-	                                                                                                         $Result.RemoteAddress,$Result.RemotePort,$Result.State,
-	                                                                                                         $Result.ProcessName,$Result.ProcessID
-	                                    if($Connections.$Key -eq $Value)
-	                                    {
-	                                        Write-Host $msg
-	                                    }
-	                                    else
-	                                    {
-	                                        $Connections.$Key = $Value
-	                                        Write-Host $msg -ForegroundColor Yellow
-	                                    }
-	                                }
-	                                if ($Host.UI.RawUI.KeyAvailable -and (3 -eq [int]$Host.UI.RawUI.ReadKey("AllowCtrlC,IncludeKeyUp,NoEcho").Character))
-	                                {
-	                                    Write-Host "Exiting now..." -foregroundcolor Yellow
-	                                    Write-Host
-	                                    [console]::TreatControlCAsInput = $false
-	                                    break
-	                                }
-	                                $Host.UI.RawUI.CursorPosition = $oldPos
-	                                start-sleep $Sleep
-	                            }
-	                        }
-	    }
+
+	[Cmdletbinding(DefaultParameterSetName = "All")]
+	Param(
+		[Parameter()]
+		[string]$ProcessName,
+
+		[Parameter()]
+		[ValidateSet("LISTENING", "ESTABLISHED", "CLOSE_WAIT", "TIME_WAIT")]
+		[string]$State,
+
+		[Parameter(ParameterSetName = "Interval")]
+		[int]$Interval,
+
+		[Parameter()]
+		[int]$Sleep = 1,
+
+		[Parameter(ParameterSetName = "Loop")]
+		[switch]$Loop
+	)
+
+	function Parse-Netstat ($NetStat) {
+		Write-Verbose " [Parse-Netstat] :: Parsing Netstat results"
+		switch -regex ($NetStat) {
+			$RegEx {
+				Write-Verbose " [Parse-Netstat] :: creating Custom object"
+				$myobj = @{
+					Protocol      = $matches.Protocol
+					LocalAddress  = $matches.LocalAddress.split(":")[0]
+					LocalPort     = $matches.LocalAddress.split(":")[1]
+					RemoteAddress = $matches.RemoteAddress.split(":")[0]
+					RemotePort    = $matches.RemoteAddress.split(":")[1]
+					State         = $matches.State
+					ProcessID     = $matches.PID
+					ProcessName   = Get-Process -Id $matches.PID -ea 0 | ForEach-Object { $_.name }
+				}
+
+				$obj = New-Object PSCustomObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.NetStatInfo')
+				Write-Verbose " [Parse-Netstat] :: Created object for [$($obj.LocalAddress):$($obj.LocalPort)]"
+
+				if ($ProcessName) {
+					$obj | Where-Object { $_.ProcessName -eq $ProcessName }
+				}
+				elseif ($State) {
+					$obj | Where-Object { $_.State -eq $State }
+				}
+				else {
+					$obj
+				}
+
+			}
+		}
 	}
-	
-	#endregion 
-	
-	#region Get-NicInfo 
-	
-	function Get-NICInfo
-	{
-	
-	    <#
-	        .Synopsis  
+
+	[RegEX]$RegEx = '\s+(?<Protocol>\S+)\s+(?<LocalAddress>\S+)\s+(?<RemoteAddress>\S+)\s+(?<State>\S+)\s+(?<PID>\S+)'
+	$Connections = @{}
+
+	switch -exact ($pscmdlet.ParameterSetName) {
+		"All" {
+			Write-Verbose " [Get-NetStat] :: ParameterSet - ALL"
+			$NetStatResults = netstat -ano | Where-Object { $_ -match "(TCP|UDP)\s+\d" }
+			Parse-Netstat $NetStatResults
+		}
+		"Interval" {
+			Write-Verbose " [Get-NetStat] :: ParameterSet - Interval"
+			for ($i = 1 ; $i -le $Interval ; $i++) {
+				Start-Sleep $Sleep
+				$NetStatResults = netstat -ano | Where-Object { $_ -match "(TCP|UDP)\s+\d" }
+				Parse-Netstat $NetStatResults | Out-String
+			}
+		}
+		"Loop" {
+			Write-Verbose " [Get-NetStat] :: ParameterSet - Loop"
+			Write-Host
+			Write-Host "Protocol LocalAddress  LocalPort RemoteAddress  RemotePort State       ProcessName   PID"
+			Write-Host "-------- ------------  --------- -------------  ---------- -----       -----------   ---" -ForegroundColor White
+			$oldPos = $Host.UI.RawUI.CursorPosition
+			[console]::TreatControlCAsInput = $true
+			while ($true) {
+				Write-Verbose " [Get-NetStat] :: Getting Netstat data"
+				$NetStatResults = netstat -ano | Where-Object { $_ -match "(TCP|UDP)\s+\d" }
+				Write-Verbose " [Get-NetStat] :: Getting Netstat data from Netstat"
+				$Results = Parse-Netstat $NetStatResults
+				Write-Verbose " [Get-NetStat] :: Parse-NetStat returned $($results.count) results"
+				foreach ($Result in $Results) {
+					$Key = $Result.LocalPort
+					$Value = $Result.ProcessID
+					$msg = "{0,-9}{1,-14}{2,-10}{3,-15}{4,-11}{5,-12}{6,-14}{7,-10}" -f $Result.Protocol, $Result.LocalAddress, $Result.LocalPort,
+					$Result.RemoteAddress, $Result.RemotePort, $Result.State,
+					$Result.ProcessName, $Result.ProcessID
+					if ($Connections.$Key -eq $Value) {
+						Write-Host $msg
+					}
+					else {
+						$Connections.$Key = $Value
+						Write-Host $msg -ForegroundColor Yellow
+					}
+				}
+				if ($Host.UI.RawUI.KeyAvailable -and (3 -eq [int]$Host.UI.RawUI.ReadKey("AllowCtrlC,IncludeKeyUp,NoEcho").Character)) {
+					Write-Host "Exiting now..." -ForegroundColor Yellow
+					Write-Host
+					[console]::TreatControlCAsInput = $false
+					break
+				}
+				$Host.UI.RawUI.CursorPosition = $oldPos
+				Start-Sleep $Sleep
+			}
+		}
+	}
+}
+
+#endregion
+
+#region Get-NicInfo
+
+function Get-NICInfo {
+
+	<#
+	        .Synopsis
 	            Gets the NIC info for specified host
-	            
+
 	        .Description
 	            Gets the NIC info for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the NIC info from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-NicInfo
 	            # Gets NIC info from local machine
-	    
+
 	        .Example
 	            Get-NicInfo -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets NIC info from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-NicInfo
 	            Description
 	            -----------
 	            Gets NIC info for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .Notes
-	            NAME:      Get-NicInfo 
+	            NAME:      Get-NicInfo
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-		[Cmdletbinding()]
-		Param(
-		    [alias('dnsHostName')]
-			[Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-			[string]$ComputerName = $Env:COMPUTERNAME
-		)
-	
-		Process
-		{
-			if($ComputerName -match "(.*)(\$)$")
-			{
-				$ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-			}
-			
-			if(Test-Host -ComputerName $ComputerName -TCPPort 135)
-			{
-				try
-				{
-					$NICS = Get-WmiObject -class Win32_NetworkAdapterConfiguration -ComputerName $ComputerName
-					
-					foreach($NIC in $NICS)
-					{
-						$Query = "Select Name,NetConnectionID FROM Win32_NetworkAdapter WHERE Index='$($NIC.Index)'"
-						$NetConnnectionID = Get-WmiObject -Query $Query -ComputerName $ComputerName
-						
-						$myobj = @{
-	                        ComputerName = $ComputerName
-							Name         = $NetConnnectionID.Name
-							NetID        = $NetConnnectionID.NetConnectionID
-							MacAddress   = $NIC.MacAddress
-							IP           = $NIC.IPAddress | ?{$_ -match "\d*\.\d*\.\d*\."}
-							Subnet       = $NIC.IPSubnet  | ?{$_ -match "\d*\.\d*\.\d*\."}
-							Enabled      = $NIC.IPEnabled
-							Index        = $NIC.Index
-						}
-						
-						$obj = New-Object PSObject -Property $myobj
-						$obj.PSTypeNames.Clear()
-						$obj.PSTypeNames.Add('BSonPosh.NICInfo')
-						$obj
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+
+		if (Test-Host -ComputerName $ComputerName -TCPPort 135) {
+			try {
+				$NICS = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -ComputerName $ComputerName
+
+				foreach ($NIC in $NICS) {
+					$Query = "Select Name,NetConnectionID FROM Win32_NetworkAdapter WHERE Index='$($NIC.Index)'"
+					$NetConnnectionID = Get-WmiObject -Query $Query -ComputerName $ComputerName
+
+					$myobj = @{
+						ComputerName = $ComputerName
+						Name         = $NetConnnectionID.Name
+						NetID        = $NetConnnectionID.NetConnectionID
+						MacAddress   = $NIC.MacAddress
+						IP           = $NIC.IPAddress | Where-Object { $_ -match "\d*\.\d*\.\d*\." }
+						Subnet       = $NIC.IPSubnet | Where-Object { $_ -match "\d*\.\d*\.\d*\." }
+						Enabled      = $NIC.IPEnabled
+						Index        = $NIC.Index
 					}
-				}
-				catch
-				{
-					Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+
+					$obj = New-Object PSObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.NICInfo')
+					$obj
 				}
 			}
-			else
-			{
-				Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
 			}
 		}
-	} 
-	
-	#endregion 
-	
-	#region Get-MotherBoard
-	
-	function Get-MotherBoard
-	{
-	        
-	    <#
-	        .Synopsis 
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+	}
+}
+
+#endregion
+
+#region Get-MotherBoard
+
+function Get-MotherBoard {
+
+	<#
+	        .Synopsis
 	            Gets the Mother Board info for specified host.
-	            
+
 	        .Description
 	            Gets the Mother Board info for specified host.
-	            
+
 	        .Parameter ComputerName
-	            Name of the Computer to get the Mother Board info from (Default is localhost.) 
-	            
+	            Name of the Computer to get the Mother Board info from (Default is localhost.)
+
 	        .Example
 	            Get-MotherBoard
 	            Description
 	            -----------
 	            Gets Mother Board info from local machine
-	    
+
 	        .Example
 	            Get-MotherBoard -ComputerName MyOtherDesktop
 	            Description
 	            -----------
 	            Gets Mother Board info from MyOtherDesktop
-	            
+
 	        .Example
 	            $Windows7Machines | Get-MotherBoard
 	            Description
 	            -----------
 	            Gets Mother Board info for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Get-MotherBoard
 	            AUTHOR:    bsonposh
@@ -3464,96 +3203,89 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Process 
-	    {
-	    
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host -ComputerName $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                $MBInfo = Get-WmiObject Win32_BaseBoard -ComputerName $ComputerName -ea STOP
-	                $myobj = @{
-	                    ComputerName     = $ComputerName
-	                    Name             = $MBInfo.Product
-	                    Manufacturer     = $MBInfo.Manufacturer
-	                    Version          = $MBInfo.Version
-	                    SerialNumber     = $MBInfo.SerialNumber
-	                 }
-	                
-	                $obj = New-Object PSObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.Computer.MotherBoard')
-	                $obj
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Process {
+
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host -ComputerName $ComputerName -TCPPort 135) {
+			try {
+				$MBInfo = Get-WmiObject Win32_BaseBoard -ComputerName $ComputerName -ea STOP
+				$myobj = @{
+					ComputerName = $ComputerName
+					Name         = $MBInfo.Product
+					Manufacturer = $MBInfo.Manufacturer
+					Version      = $MBInfo.Version
+					SerialNumber = $MBInfo.SerialNumber
+				}
+
+				$obj = New-Object PSObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.Computer.MotherBoard')
+				$obj
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+
 	}
-	    
-	#endregion # Get-MotherBoard
-	
-	#region Get-Routetable 
-	
-	function Get-Routetable
-	{
-	    
-	    <#
-	        .Synopsis 
+}
+
+#endregion # Get-MotherBoard
+
+#region Get-Routetable
+
+function Get-Routetable {
+
+	<#
+	        .Synopsis
 	            Gets the route table for specified host.
-	            
+
 	        .Description
 	            Gets the route table for specified host.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the route table from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-RouteTable
 	            Description
 	            -----------
 	            Gets route table from local machine
-	    
+
 	        .Example
 	            Get-RouteTable -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets route table from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-RouteTable
 	            Description
 	            -----------
 	            Gets route table for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Get-RouteTable
 	            AUTHOR:    bsonposh
@@ -3561,245 +3293,228 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    process 
-	    {
-	    
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            $Routes = Get-WMIObject Win32_IP4RouteTable -ComputerName $ComputerName -Property Name,Mask,NextHop,Metric1,Type
-	            foreach($Route in $Routes)
-	            {
-	                $myobj = @{}
-	                $myobj.ComputerName = $ComputerName
-	                $myobj.Name = $Route.Name
-	                $myobj.NetworkMask = $Route.mask
-	                $myobj.Gateway = if($Route.NextHop -eq "0.0.0.0"){"On-Link"}else{$Route.NextHop}
-	                $myobj.Metric = $Route.Metric1
-	                
-	                $obj = New-Object PSObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.RouteTable')
-	                $obj
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+	process {
+
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			$Routes = Get-WmiObject Win32_IP4RouteTable -ComputerName $ComputerName -Property Name, Mask, NextHop, Metric1, Type
+			foreach ($Route in $Routes) {
+				$myobj = @{}
+				$myobj.ComputerName = $ComputerName
+				$myobj.Name = $Route.Name
+				$myobj.NetworkMask = $Route.mask
+				$myobj.Gateway = if ($Route.NextHop -eq "0.0.0.0") { "On-Link" }else { $Route.NextHop }
+				$myobj.Metric = $Route.Metric1
+
+				$obj = New-Object PSObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.RouteTable')
+				$obj
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+
 	}
-	    
-	#endregion 
-	
-	#region Get-SystemType 
-	
-	function Get-SystemType
-	{
-	        
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Get-SystemType
+
+function Get-SystemType {
+
+	<#
+	        .Synopsis
 	            Gets the system type for specified host
-	            
+
 	        .Description
 	            Gets the system type info for specified host
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the System Type from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-SystemType
 	            Description
 	            -----------
 	            Gets System Type from local machine
-	    
+
 	        .Example
 	            Get-SystemType -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets System Type from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-SystemType
 	            Description
 	            -----------
 	            Gets System Type for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSObject
-	            
+
 	        .Notes
-	            NAME:      Get-SystemType 
+	            NAME:      Get-SystemType
 	            AUTHOR:    YetiCentral\bshell
 	            Website:   www.bsonposh.com
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    
-	    Begin 
-	    {
-	    
-	        function ConvertTo-ChassisType($Type)
-	        {
-	            switch ($Type)
-	            {
-	                1    {"Other"}
-	                2    {"Unknown"}
-	                3    {"Desktop"}
-	                4    {"Low Profile Desktop"}
-	                5    {"Pizza Box"}
-	                6    {"Mini Tower"}
-	                7    {"Tower"}
-	                8    {"Portable"}
-	                9    {"Laptop"}
-	                10    {"Notebook"}
-	                11    {"Hand Held"}
-	                12    {"Docking Station"}
-	                13    {"All in One"}
-	                14    {"Sub Notebook"}
-	                15    {"Space-Saving"}
-	                16    {"Lunch Box"}
-	                17    {"Main System Chassis"}
-	                18    {"Expansion Chassis"}
-	                19    {"SubChassis"}
-	                20    {"Bus Expansion Chassis"}
-	                21    {"Peripheral Chassis"}
-	                22    {"Storage Chassis"}
-	                23    {"Rack Mount Chassis"}
-	                24    {"Sealed-Case PC"}
-	            }
-	        }
-	        function ConvertTo-SecurityStatus($Status)
-	        {
-	            switch ($Status)
-	            {
-	                1    {"Other"}
-	                2    {"Unknown"}
-	                3    {"None"}
-	                4    {"External Interface Locked Out"}
-	                5    {"External Interface Enabled"}
-	            }
-	        }
-	    
-	    }
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Get-SystemType] :: Process Start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                Write-Verbose " [Get-SystemType] :: Getting System (Enclosure) Type info use WMI"
-	                $SystemInfo = Get-WmiObject Win32_SystemEnclosure -ComputerName $ComputerName
-	                $CSInfo = Get-WmiObject -Query "Select Model FROM Win32_ComputerSystem" -ComputerName $ComputerName
-	                
-	                Write-Verbose " [Get-SystemType] :: Creating Hash Table"
-	                $myobj = @{}
-	                Write-Verbose " [Get-SystemType] :: Setting ComputerName   - $ComputerName"
-	                $myobj.ComputerName = $ComputerName
-	                
-	                Write-Verbose " [Get-SystemType] :: Setting Manufacturer   - $($SystemInfo.Manufacturer)"
-	                $myobj.Manufacturer = $SystemInfo.Manufacturer
-	                
-	                Write-Verbose " [Get-SystemType] :: Setting Module   - $($CSInfo.Model)"
-	                $myobj.Model = $CSInfo.Model
-	                
-	                Write-Verbose " [Get-SystemType] :: Setting SerialNumber   - $($SystemInfo.SerialNumber)"
-	                $myobj.SerialNumber = $SystemInfo.SerialNumber
-	                
-	                Write-Verbose " [Get-SystemType] :: Setting SecurityStatus - $($SystemInfo.SecurityStatus)"
-	                $myobj.SecurityStatus = ConvertTo-SecurityStatus $SystemInfo.SecurityStatus
-	                
-	                Write-Verbose " [Get-SystemType] :: Setting Type           - $($SystemInfo.ChassisTypes)"
-	                $myobj.Type = ConvertTo-ChassisType $SystemInfo.ChassisTypes
-	                
-	                Write-Verbose " [Get-SystemType] :: Creating Custom Object"
-	                $obj = New-Object PSCustomObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.SystemType')
-	                $obj
-	            }
-	            catch
-	            {
-	                Write-Verbose " [Get-SystemType] :: [$ComputerName] Failed with Error: $($Error[0])" 
-	            }
-	        }
-	    
-	    }
-	    
+
+	[Cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+
+	Begin {
+
+		function ConvertTo-ChassisType($Type) {
+			switch ($Type) {
+				1 { "Other" }
+				2 { "Unknown" }
+				3 { "Desktop" }
+				4 { "Low Profile Desktop" }
+				5 { "Pizza Box" }
+				6 { "Mini Tower" }
+				7 { "Tower" }
+				8 { "Portable" }
+				9 { "Laptop" }
+				10 { "Notebook" }
+				11 { "Hand Held" }
+				12 { "Docking Station" }
+				13 { "All in One" }
+				14 { "Sub Notebook" }
+				15 { "Space-Saving" }
+				16 { "Lunch Box" }
+				17 { "Main System Chassis" }
+				18 { "Expansion Chassis" }
+				19 { "SubChassis" }
+				20 { "Bus Expansion Chassis" }
+				21 { "Peripheral Chassis" }
+				22 { "Storage Chassis" }
+				23 { "Rack Mount Chassis" }
+				24 { "Sealed-Case PC" }
+			}
+		}
+		function ConvertTo-SecurityStatus($Status) {
+			switch ($Status) {
+				1 { "Other" }
+				2 { "Unknown" }
+				3 { "None" }
+				4 { "External Interface Locked Out" }
+				5 { "External Interface Enabled" }
+			}
+		}
+
 	}
-	    
-	#endregion 
-	
-	#region Get-RebootTime 
-	
-	function Get-RebootTime
-	{
-	    <#
-	        .Synopsis 
+	Process {
+
+		Write-Verbose " [Get-SystemType] :: Process Start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			try {
+				Write-Verbose " [Get-SystemType] :: Getting System (Enclosure) Type info use WMI"
+				$SystemInfo = Get-WmiObject Win32_SystemEnclosure -ComputerName $ComputerName
+				$CSInfo = Get-WmiObject -Query "Select Model FROM Win32_ComputerSystem" -ComputerName $ComputerName
+
+				Write-Verbose " [Get-SystemType] :: Creating Hash Table"
+				$myobj = @{}
+				Write-Verbose " [Get-SystemType] :: Setting ComputerName   - $ComputerName"
+				$myobj.ComputerName = $ComputerName
+
+				Write-Verbose " [Get-SystemType] :: Setting Manufacturer   - $($SystemInfo.Manufacturer)"
+				$myobj.Manufacturer = $SystemInfo.Manufacturer
+
+				Write-Verbose " [Get-SystemType] :: Setting Module   - $($CSInfo.Model)"
+				$myobj.Model = $CSInfo.Model
+
+				Write-Verbose " [Get-SystemType] :: Setting SerialNumber   - $($SystemInfo.SerialNumber)"
+				$myobj.SerialNumber = $SystemInfo.SerialNumber
+
+				Write-Verbose " [Get-SystemType] :: Setting SecurityStatus - $($SystemInfo.SecurityStatus)"
+				$myobj.SecurityStatus = ConvertTo-SecurityStatus $SystemInfo.SecurityStatus
+
+				Write-Verbose " [Get-SystemType] :: Setting Type           - $($SystemInfo.ChassisTypes)"
+				$myobj.Type = ConvertTo-ChassisType $SystemInfo.ChassisTypes
+
+				Write-Verbose " [Get-SystemType] :: Creating Custom Object"
+				$obj = New-Object PSCustomObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.SystemType')
+				$obj
+			}
+			catch {
+				Write-Verbose " [Get-SystemType] :: [$ComputerName] Failed with Error: $($Error[0])"
+			}
+		}
+
+	}
+
+}
+
+#endregion
+
+#region Get-RebootTime
+
+function Get-RebootTime {
+	<#
+	        .Synopsis
 	            Gets the reboot time for specified host.
-	            
+
 	        .Description
 	            Gets the reboot time for specified host.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to get the reboot time from (Default is localhost.)
-	            
+
 	        .Example
 	            Get-RebootTime
 	            Description
 	            -----------
-	            Gets OS Version from local     
-	        
+	            Gets OS Version from local
+
 	        .Example
 	            Get-RebootTime -Last
 	            Description
 	            -----------
 	            Gets last reboot time from local machine
-	
+
 	        .Example
 	            Get-RebootTime -ComputerName MyServer
 	            Description
 	            -----------
 	            Gets reboot time from MyServer
-	            
+
 	        .Example
 	            $Servers | Get-RebootTime
 	            Description
 	            -----------
 	            Gets reboot time for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Get-RebootTime
 	            AUTHOR:    bsonposh
@@ -3807,156 +3522,145 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [cmdletbinding()]
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME,
-	        
-	        [Parameter()]
-	        [Switch]$Last
-	    )
-	    process 
-	    {
-	    
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        if(Test-Host $ComputerName -TCPPort 135)
-	        {
-	            try
-	            {
-	                if($Last)
-	                {
-	                    $date = Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -ea STOP | foreach{$_.LastBootUpTime}
-	                    $RebootTime = [System.DateTime]::ParseExact($date.split('.')[0],'yyyyMMddHHmmss',$null)
-	                    $myobj = @{}
-	                    $myobj.ComputerName = $ComputerName
-	                    $myobj.RebootTime = $RebootTime
-	                    
-	                    $obj = New-Object PSObject -Property $myobj
-	                    $obj.PSTypeNames.Clear()
-	                    $obj.PSTypeNames.Add('BSonPosh.RebootTime')
-	                    $obj
-	                }
-	                else
-	                {
-	                    $Query = "Select * FROM Win32_NTLogEvent WHERE SourceName='eventlog' AND EventCode='6009'"
-	                    Get-WmiObject -Query $Query -ea 0 -ComputerName $ComputerName | foreach {
-	                        $myobj = @{}
-	                        $RebootTime = [DateTime]::ParseExact($_.TimeGenerated.Split(".")[0],'yyyyMMddHHmmss',$null)
-	                        $myobj.ComputerName = $ComputerName
-	                        $myobj.RebootTime = $RebootTime
-	                        
-	                        $obj = New-Object PSObject -Property $myobj
-	                        $obj.PSTypeNames.Clear()
-	                        $obj.PSTypeNames.Add('BSonPosh.RebootTime')
-	                        $obj
-	                    }
-	                }
-	    
-	            }
-	            catch
-	            {
-	                Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
-	            }
-	        }
-	        else
-	        {
-	            Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
-	        }
-	    
-	    }
-	}
-	    
-	#endregion 
-	
-	### BSONPOSH - KMS
-	
-	#region ConvertTo-KMSStatus 
-	
-	function ConvertTo-KMSStatus
-	{
-		[cmdletbinding()]
-		Param(
-			[Parameter(mandatory=$true)]
-			[int]$StatusCode
-		)
-		switch -exact ($StatusCode)
-		{
-			0		{"Unlicensed"}
-			1		{"Licensed"}
-			2		{"OOBGrace"}
-			3		{"OOTGrace"}
-			4		{"NonGenuineGrace"}
-			5		{"Notification"}
-			6		{"ExtendedGrace"}
-			default {"Unknown"}
+
+	[cmdletbinding()]
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME,
+
+		[Parameter()]
+		[Switch]$Last
+	)
+	process {
+
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
 		}
+		if (Test-Host $ComputerName -TCPPort 135) {
+			try {
+				if ($Last) {
+					$date = Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName -ea STOP | ForEach-Object { $_.LastBootUpTime }
+					$RebootTime = [System.DateTime]::ParseExact($date.split('.')[0], 'yyyyMMddHHmmss', $null)
+					$myobj = @{}
+					$myobj.ComputerName = $ComputerName
+					$myobj.RebootTime = $RebootTime
+
+					$obj = New-Object PSObject -Property $myobj
+					$obj.PSTypeNames.Clear()
+					$obj.PSTypeNames.Add('BSonPosh.RebootTime')
+					$obj
+				}
+				else {
+					$Query = "Select * FROM Win32_NTLogEvent WHERE SourceName='eventlog' AND EventCode='6009'"
+					Get-WmiObject -Query $Query -ea 0 -ComputerName $ComputerName | ForEach-Object {
+						$myobj = @{}
+						$RebootTime = [DateTime]::ParseExact($_.TimeGenerated.Split(".")[0], 'yyyyMMddHHmmss', $null)
+						$myobj.ComputerName = $ComputerName
+						$myobj.RebootTime = $RebootTime
+
+						$obj = New-Object PSObject -Property $myobj
+						$obj.PSTypeNames.Clear()
+						$obj.PSTypeNames.Add('BSonPosh.RebootTime')
+						$obj
+					}
+				}
+
+			}
+			catch {
+				Write-Host " Host [$ComputerName] Failed with Error: $($Error[0])" -ForegroundColor Red
+			}
+		}
+		else {
+			Write-Host " Host [$ComputerName] Failed Connectivity Test " -ForegroundColor Red
+		}
+
 	}
-	#endregion 
-	
-	#region Get-KMSActivationDetail 
-	
-	function Get-KMSActivationDetail
-	{
-	
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+### BSONPOSH - KMS
+
+#region ConvertTo-KMSStatus
+
+function ConvertTo-KMSStatus {
+	[cmdletbinding()]
+	Param(
+		[Parameter(mandatory = $true)]
+		[int]$StatusCode
+	)
+	switch -exact ($StatusCode) {
+		0 { "Unlicensed" }
+		1 { "Licensed" }
+		2 { "OOBGrace" }
+		3 { "OOTGrace" }
+		4 { "NonGenuineGrace" }
+		5 { "Notification" }
+		6 { "ExtendedGrace" }
+		default { "Unknown" }
+	}
+}
+#endregion
+
+#region Get-KMSActivationDetail
+
+function Get-KMSActivationDetail {
+
+	<#
+	        .Synopsis
 	            Gets the Activation Detail from the KMS Server.
-	            
+
 	        .Description
 	            Gets the Activation Detail from the KMS Server.
-	            
+
 	        .Parameter KMS
 	            KMS Server to connect to.
-	            
+
 	        .Parameter Filter
 	            Filter for the Computers to get activation for.
-	        
+
 	        .Parameter After
 	            The DateTime to start the query from. For example if I only want activations for the last thirty days:
 	            the date time would be ((Get-Date).AddMonths(-1))
-	            
+
 	        .Parameter Unique
 	            Only return Unique entries.
-	            
+
 	        .Example
 	            Get-KMSActivationDetail -kms MyKMSServer
 	            Description
 	            -----------
 	            Get all the activations for the target KMS server.
-	            
+
 	        .Example
 	            Get-KMSActivationDetail -kms MyKMSServer -filter mypc
 	            Description
 	            -----------
 	            Get all the activations for all the machines that are like "mypc" on the target KMS server.
-	            
+
 	        .Example
 	            Get-KMSActivationDetail -kms MyKMSServer -After ((Get-Date).AddDays(-1))
 	            Description
 	            -----------
 	            Get all the activations for the last day on the target KMS server.
-	    
+
 	        .Example
 	            Get-KMSActivationDetail -kms MyKMSServer -unique
 	            Description
 	            -----------
 	            Returns all the unique activate for the targeted KMS server.
-	            
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-KMSServer
 	            Get-KMSStatus
-	            
+
 	        .Notes
 	            NAME:      Get-KMSActivationDetail
 	            AUTHOR:    bsonposh
@@ -3964,114 +3668,107 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	    
-	        [Parameter(mandatory=$true)]
-	        [string]$KMS,
-	        
-	        [Parameter()]
-	        [string]$Filter="*",
-	        
-	        [Parameter()]
-	        [datetime]$After,
-	        
-	        [Parameter()]
-	        [switch]$Unique
-	        
-	    )
-	    Write-Verbose " [Get-KMSActivationDetail] :: Cmdlet Start"
-	    Write-Verbose " [Get-KMSActivationDetail] :: KMS Server   = $KMS"
-	    Write-Verbose " [Get-KMSActivationDetail] :: Filter       = $Filter"
-	    Write-Verbose " [Get-KMSActivationDetail] :: After Date   = $After"
-	    Write-Verbose " [Get-KMSActivationDetail] :: Unique       = $Unique"
-	    
-	    if($After)
-	    {
-	        Write-Verbose " [Get-KMSActivationDetail] :: Processing Records after $After"
-	        $Events = Get-Eventlog -LogName "Key Management Service" -ComputerName $KMS -After $After -Message "*$Filter*"
-	    }
-	    else
-	    {
-	        Write-Verbose " [Get-KMSActivationDetail] :: Processing Records"
-	        $Events = Get-Eventlog -LogName "Key Management Service" -ComputerName $KMS -Message "*$Filter*"
-	    }
-	    
-	    Write-Verbose " [Get-KMSActivationDetail] :: Creating Objects Collection"
-	    $MyObjects = @()
-	    
-	    Write-Verbose " [Get-KMSActivationDetail] :: Processing {$($Events.count)} Events"
-	    foreach($Event in $Events)
-	    {
-	        Write-Verbose " [Get-KMSActivationDetail] :: Creating Hash Table [$($Event.Index)]"
-	        $Message = $Event.Message.Split(",")
-	        
-	        $myobj = @{}
-	        Write-Verbose " [Get-KMSActivationDetail] :: Setting ComputerName to $($Message[3])"
-	        $myobj.Computername = $Message[3]
-	        Write-Verbose " [Get-KMSActivationDetail] :: Setting Date to $($Event.TimeGenerated)"
-	        $myobj.Date = $Event.TimeGenerated
-	        Write-Verbose " [Get-KMSActivationDetail] :: Creating Custom Object [$($Event.Index)]"
-	        $MyObjects += New-Object PSObject -Property $myobj
-	    }
-	    
-	    if($Unique)
-	    {
-	        Write-Verbose " [Get-KMSActivationDetail] :: Parsing out Unique Objects"
-	        $UniqueObjects = $MyObjects | Group-Object -Property Computername
-	        foreach($UniqueObject in $UniqueObjects)
-	        {
-	            $myobj = @{}
-	            $myobj.ComputerName = $UniqueObject.Name
-	            $myobj.Count = $UniqueObject.count
-	    
-	            $obj = New-Object PSObject -Property $myobj
-	            $obj.PSTypeNames.Clear()
-	            $obj.PSTypeNames.Add('BSonPosh.KMS.ActivationDetail')
-	            $obj
-	        }
-	        
-	    }
-	    else
-	    {
-	        $MyObjects
-	    }
-	
+
+	[Cmdletbinding()]
+	Param(
+
+		[Parameter(mandatory = $true)]
+		[string]$KMS,
+
+		[Parameter()]
+		[string]$Filter = "*",
+
+		[Parameter()]
+		[datetime]$After,
+
+		[Parameter()]
+		[switch]$Unique
+
+	)
+	Write-Verbose " [Get-KMSActivationDetail] :: Cmdlet Start"
+	Write-Verbose " [Get-KMSActivationDetail] :: KMS Server   = $KMS"
+	Write-Verbose " [Get-KMSActivationDetail] :: Filter       = $Filter"
+	Write-Verbose " [Get-KMSActivationDetail] :: After Date   = $After"
+	Write-Verbose " [Get-KMSActivationDetail] :: Unique       = $Unique"
+
+	if ($After) {
+		Write-Verbose " [Get-KMSActivationDetail] :: Processing Records after $After"
+		$Events = Get-EventLog -LogName "Key Management Service" -ComputerName $KMS -After $After -Message "*$Filter*"
 	}
-	#endregion 
-	
-	#region Get-KMSServer 
-	
-	function Get-KMSServer
-	{
-	    
-	    <#
-	        .Synopsis 
+	else {
+		Write-Verbose " [Get-KMSActivationDetail] :: Processing Records"
+		$Events = Get-EventLog -LogName "Key Management Service" -ComputerName $KMS -Message "*$Filter*"
+	}
+
+	Write-Verbose " [Get-KMSActivationDetail] :: Creating Objects Collection"
+	$MyObjects = @()
+
+	Write-Verbose " [Get-KMSActivationDetail] :: Processing {$($Events.count)} Events"
+	foreach ($Event in $Events) {
+		Write-Verbose " [Get-KMSActivationDetail] :: Creating Hash Table [$($Event.Index)]"
+		$Message = $Event.Message.Split(",")
+
+		$myobj = @{}
+		Write-Verbose " [Get-KMSActivationDetail] :: Setting ComputerName to $($Message[3])"
+		$myobj.Computername = $Message[3]
+		Write-Verbose " [Get-KMSActivationDetail] :: Setting Date to $($Event.TimeGenerated)"
+		$myobj.Date = $Event.TimeGenerated
+		Write-Verbose " [Get-KMSActivationDetail] :: Creating Custom Object [$($Event.Index)]"
+		$MyObjects += New-Object PSObject -Property $myobj
+	}
+
+	if ($Unique) {
+		Write-Verbose " [Get-KMSActivationDetail] :: Parsing out Unique Objects"
+		$UniqueObjects = $MyObjects | Group-Object -Property Computername
+		foreach ($UniqueObject in $UniqueObjects) {
+			$myobj = @{}
+			$myobj.ComputerName = $UniqueObject.Name
+			$myobj.Count = $UniqueObject.count
+
+			$obj = New-Object PSObject -Property $myobj
+			$obj.PSTypeNames.Clear()
+			$obj.PSTypeNames.Add('BSonPosh.KMS.ActivationDetail')
+			$obj
+		}
+
+	}
+	else {
+		$MyObjects
+	}
+
+}
+#endregion
+
+#region Get-KMSServer
+
+function Get-KMSServer {
+
+	<#
+	        .Synopsis
 	            Gets the KMS Server.
-	            
+
 	        .Description
 	            Gets a PSCustomObject (BSonPosh.KMS.Server) for the KMS Server.
-	            
+
 	        .Parameter KMS
 	            KMS Server to get.
-	            
+
 	        .Example
 	            Get-KMSServer -kms MyKMSServer
 	            Description
 	            -----------
 	            Gets a KMS Server object for 'MyKMSServer'
-	    
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-KMSActivationDetail
 	            Get-KMSStatus
-	            
+
 	        .Notes
 	            NAME:      Get-KMSServer
 	            AUTHOR:    bsonposh
@@ -4079,84 +3776,80 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$KMS
-	    )
-	    if(!$KMS)
-	    {
-	        Write-Verbose " [Get-KMSServer] :: No KMS Server Passed... Using Discovery"
-	        $KMS = Test-KMSServerDiscovery | select -ExpandProperty ComputerName
-	    }
-	    try
-	    {
-	        Write-Verbose " [Get-KMSServer] :: Querying KMS Service using WMI"
-	        $KMSService = Get-WmiObject "SoftwareLicensingService" -ComputerName $KMS
-	        $myobj = @{
-	            ComputerName            = $KMS
-	            Version                 = $KMSService.Version
-	            KMSEnable               = $KMSService.KeyManagementServiceActivationDisabled -eq $false
-	            CurrentCount            = $KMSService.KeyManagementServiceCurrentCount
-	            Port                    = $KMSService.KeyManagementServicePort
-	            DNSPublishing           = $KMSService.KeyManagementServiceDnsPublishing
-	            TotalRequest            = $KMSService.KeyManagementServiceTotalRequests
-	            FailedRequest           = $KMSService.KeyManagementServiceFailedRequests
-	            Unlicensed              = $KMSService.KeyManagementServiceUnlicensedRequests
-	            Licensed                = $KMSService.KeyManagementServiceLicensedRequests
-	            InitialGracePeriod      = $KMSService.KeyManagementServiceOOBGraceRequests
-	            LicenseExpired          = $KMSService.KeyManagementServiceOOTGraceRequests
-	            NonGenuineGracePeriod   = $KMSService.KeyManagementServiceNonGenuineGraceRequests
-	            LicenseWithNotification = $KMSService.KeyManagementServiceNotificationRequests
-	            ActivationInterval      = $KMSService.VLActivationInterval
-	            RenewalInterval         = $KMSService.VLRenewalInterval
-	        }
-	    
-	        $obj = New-Object PSObject -Property $myobj
-	        $obj.PSTypeNames.Clear()
-	        $obj.PSTypeNames.Add('BSonPosh.KMS.Server')
-	        $obj
-	    }
-	    catch
-	    {
-	        Write-Verbose " [Get-KMSServer] :: Error: $($Error[0])"
-	    }
-	
+
+	[Cmdletbinding()]
+	Param(
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$KMS
+	)
+	if (!$KMS) {
+		Write-Verbose " [Get-KMSServer] :: No KMS Server Passed... Using Discovery"
+		$KMS = Test-KMSServerDiscovery | Select-Object -ExpandProperty ComputerName
 	}
-	#endregion 
-	
-	#region Get-KMSStatus 
-	
-	function Get-KMSStatus
-	{
-	
-	    <#
-	        .Synopsis 
+	try {
+		Write-Verbose " [Get-KMSServer] :: Querying KMS Service using WMI"
+		$KMSService = Get-WmiObject "SoftwareLicensingService" -ComputerName $KMS
+		$myobj = @{
+			ComputerName            = $KMS
+			Version                 = $KMSService.Version
+			KMSEnable               = $KMSService.KeyManagementServiceActivationDisabled -eq $false
+			CurrentCount            = $KMSService.KeyManagementServiceCurrentCount
+			Port                    = $KMSService.KeyManagementServicePort
+			DNSPublishing           = $KMSService.KeyManagementServiceDnsPublishing
+			TotalRequest            = $KMSService.KeyManagementServiceTotalRequests
+			FailedRequest           = $KMSService.KeyManagementServiceFailedRequests
+			Unlicensed              = $KMSService.KeyManagementServiceUnlicensedRequests
+			Licensed                = $KMSService.KeyManagementServiceLicensedRequests
+			InitialGracePeriod      = $KMSService.KeyManagementServiceOOBGraceRequests
+			LicenseExpired          = $KMSService.KeyManagementServiceOOTGraceRequests
+			NonGenuineGracePeriod   = $KMSService.KeyManagementServiceNonGenuineGraceRequests
+			LicenseWithNotification = $KMSService.KeyManagementServiceNotificationRequests
+			ActivationInterval      = $KMSService.VLActivationInterval
+			RenewalInterval         = $KMSService.VLRenewalInterval
+		}
+
+		$obj = New-Object PSObject -Property $myobj
+		$obj.PSTypeNames.Clear()
+		$obj.PSTypeNames.Add('BSonPosh.KMS.Server')
+		$obj
+	}
+	catch {
+		Write-Verbose " [Get-KMSServer] :: Error: $($Error[0])"
+	}
+
+}
+#endregion
+
+#region Get-KMSStatus
+
+function Get-KMSStatus {
+
+	<#
+	        .Synopsis
 	            Gets the KMS status from the Computer Name specified.
-	            
+
 	        .Description
 	            Gets the KMS status from the Computer Name specified (Default local host.) Returns a custom object (BSonPosh.KMS.Status)
-	            
+
 	        .Parameter ComputerName
 	            Computer to get the KMS Status for.
-	        
+
 	        .Example
 	            Get-KMSStatus mypc
 	            Description
 	            -----------
 	            Returns a KMS status object for Computer 'mypc'
-	    
+
 	        .OUTPUTS
 	            PSCustomObject
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            Get-KMSActivationDetail
 	            Get-KMSServer
-	            
+
 	        .Notes
 	            NAME:      Get-KMSStatus
 	            AUTHOR:    bsonposh
@@ -4164,101 +3857,95 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	    )
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Get-KMSStatus] :: Process Start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        $Query = "Select * FROM SoftwareLicensingProduct WHERE Description LIKE '%VOLUME_KMSCLIENT%'"
-	        Write-Verbose " [Get-KMSStatus] :: ComputerName = $ComputerName"
-	        Write-Verbose " [Get-KMSStatus] :: Query = $Query"
-	        try
-	        {
-	            Write-Verbose " [Get-KMSStatus] :: Calling WMI"
-	            $WMIResult = Get-WmiObject -ComputerName $ComputerName -query $Query
-	            foreach($result in $WMIResult)
-	            {
-	                Write-Verbose " [Get-KMSStatus] :: Creating Hash Table"
-	                $myobj = @{}
-	                Write-Verbose " [Get-KMSStatus] :: Setting ComputerName to $ComputerName"
-	                $myobj.ComputerName = $ComputerName
-	                Write-Verbose " [Get-KMSStatus] :: Setting KMSServer to $($result.KeyManagementServiceMachine)"
-	                $myobj.KMSServer = $result.KeyManagementServiceMachine
-	                Write-Verbose " [Get-KMSStatus] :: Setting KMSPort to $($result.KeyManagementServicePort)"
-	                $myobj.KMSPort = $result.KeyManagementServicePort
-	                Write-Verbose " [Get-KMSStatus] :: Setting LicenseFamily to $($result.LicenseFamily)"
-	                $myobj.LicenseFamily = $result.LicenseFamily
-	                Write-Verbose " [Get-KMSStatus] :: Setting Status to $($result.LicenseStatus)"
-	                $myobj.Status = ConvertTo-KMSStatus $result.LicenseStatus
-	                Write-Verbose " [Get-KMSStatus] :: Creating Object"
-	    
-	                $obj = New-Object PSObject -Property $myobj
-	                $obj.PSTypeNames.Clear()
-	                $obj.PSTypeNames.Add('BSonPosh.KMS.Status')
-	                $obj
-	            }
-	        }
-	        catch
-	        {
-	            Write-Verbose " [Get-KMSStatus] :: Error - $($Error[0])"
-	        }
-	    
-	    }
-	
+
+	[Cmdletbinding()]
+	Param(
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+	)
+	Process {
+
+		Write-Verbose " [Get-KMSStatus] :: Process Start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		$Query = "Select * FROM SoftwareLicensingProduct WHERE Description LIKE '%VOLUME_KMSCLIENT%'"
+		Write-Verbose " [Get-KMSStatus] :: ComputerName = $ComputerName"
+		Write-Verbose " [Get-KMSStatus] :: Query = $Query"
+		try {
+			Write-Verbose " [Get-KMSStatus] :: Calling WMI"
+			$WMIResult = Get-WmiObject -ComputerName $ComputerName -Query $Query
+			foreach ($result in $WMIResult) {
+				Write-Verbose " [Get-KMSStatus] :: Creating Hash Table"
+				$myobj = @{}
+				Write-Verbose " [Get-KMSStatus] :: Setting ComputerName to $ComputerName"
+				$myobj.ComputerName = $ComputerName
+				Write-Verbose " [Get-KMSStatus] :: Setting KMSServer to $($result.KeyManagementServiceMachine)"
+				$myobj.KMSServer = $result.KeyManagementServiceMachine
+				Write-Verbose " [Get-KMSStatus] :: Setting KMSPort to $($result.KeyManagementServicePort)"
+				$myobj.KMSPort = $result.KeyManagementServicePort
+				Write-Verbose " [Get-KMSStatus] :: Setting LicenseFamily to $($result.LicenseFamily)"
+				$myobj.LicenseFamily = $result.LicenseFamily
+				Write-Verbose " [Get-KMSStatus] :: Setting Status to $($result.LicenseStatus)"
+				$myobj.Status = ConvertTo-KMSStatus $result.LicenseStatus
+				Write-Verbose " [Get-KMSStatus] :: Creating Object"
+
+				$obj = New-Object PSObject -Property $myobj
+				$obj.PSTypeNames.Clear()
+				$obj.PSTypeNames.Add('BSonPosh.KMS.Status')
+				$obj
+			}
+		}
+		catch {
+			Write-Verbose " [Get-KMSStatus] :: Error - $($Error[0])"
+		}
+
 	}
-	#endregion 
-	
-	#region Test-KMSIsActivated 
-	
-	function Test-KMSIsActivated 
-	{
-	        
-	    <#
-	        .Synopsis 
+
+}
+#endregion
+
+#region Test-KMSIsActivated
+
+function Test-KMSIsActivated {
+
+	<#
+	        .Synopsis
 	            Test machine for activation.
-	            
+
 	        .Description
 	            Test machine for activation.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to test activation on (Default is localhost.)
-	            
+
 	        .Example
 	            Test-KMSIsActivated
 	            Description
 	            -----------
 	            Test activation on local machine
-	    
+
 	        .Example
 	            Test-KMSIsActivated -ComputerName MyServer
 	            Description
 	            -----------
 	            Test activation on MyServer
-	            
+
 	        .Example
 	            $Servers | Test-KMSIsActivated
 	            Description
 	            -----------
 	            Test activation for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            Object
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Test-KMSIsActivated
 	            AUTHOR:    bsonposh
@@ -4266,70 +3953,65 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	    
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	        
-	    )
-	    
-	    Process 
-	    {
-	    
-	        Write-Verbose " [Test-KMSActivation] :: Process start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        Write-Verbose " [Test-KMSActivation] :: ComputerName = $ComputerName"
-	        if(Test-Host $ComputerName -TCP 135)
-	        {
-	            Write-Verbose " [Test-KMSActivation] :: Process start"
-	            $status = Get-KMSStatus -ComputerName $ComputerName
-	            if($status.Status -eq "Licensed")
-	            {
-	                $_
-	            }
-	        }
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+
+	)
+
+	Process {
+
+		Write-Verbose " [Test-KMSActivation] :: Process start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		Write-Verbose " [Test-KMSActivation] :: ComputerName = $ComputerName"
+		if (Test-Host $ComputerName -TCP 135) {
+			Write-Verbose " [Test-KMSActivation] :: Process start"
+			$status = Get-KMSStatus -ComputerName $ComputerName
+			if ($status.Status -eq "Licensed") {
+				$_
+			}
+		}
+
 	}
-	    
-	#endregion 
-	
-	#region Test-KMSServerDiscovery 
-	
-	function Test-KMSServerDiscovery
-	{
-	    
-	    <#
-	        .Synopsis 
+}
+
+#endregion
+
+#region Test-KMSServerDiscovery
+
+function Test-KMSServerDiscovery {
+
+	<#
+	        .Synopsis
 	            Test KMS server discovery.
-	            
+
 	        .Description
 	            Test KMS server discovery.
-	            
+
 	        .Parameter DNSSuffix
 	            DNSSuffix to do discovery on.
-	            
+
 	        .Example
 	            Test-KMSServerDiscovery
 	            Description
 	            -----------
 	            Test KMS server discovery on local machine
-	            
+
 	        .OUTPUTS
 	            PSCustomObject (BSonPosh.KMS.DiscoveryResult)
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Test-KMSServerDiscovery
 	            AUTHOR:    bsonposh
@@ -4337,108 +4019,101 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param($DNSSuffix)
-	    
-	    Write-Verbose " [Test-KMSServerDiscovery] :: cmdlet started"
-	    Write-Verbose " [Test-KMSServerDiscovery] :: Getting dns primary suffix from registry"
-	    if(!$DNSSuffix)
-	    {
-	        $key = get-item -path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters
-	        $DNSSuffix = $key.GetValue("Domain")
-	    }
-	    Write-Verbose " [Test-KMSServerDiscovery] :: DNS Suffix = $DNSSuffix"
-	    $record = "_vlmcs._tcp.${DNSSuffix}"
-	    Write-Verbose " [Test-KMSServerDiscovery] :: SRV Record to query for = $record"
-	    $NameRegEx = "\s+svr hostname   = (?<HostName>.*)$"
-	    $PortRegEX = "\s+(port)\s+ = (?<Port>\d+)"
-	    try
-	    {
-	        Write-Verbose " [Test-KMSServerDiscovery] :: Running nslookup"    
-	        Write-Verbose " [Test-KMSServerDiscovery] :: Command - nslookup -type=srv $record 2>1 | select-string `"svr hostname`" -Context 4,0"
-	        $results = nslookup -type=srv $record 2>1 | select-string "svr hostname" -Context 4,0
-	        if($results)
-	        {
-	            Write-Verbose " [Test-KMSServerDiscovery] :: Found Entry: $Results"
-	        }
-	        else
-	        {
-	            Write-Verbose " [Test-KMSServerDiscovery] :: No Results found"
-	            return
-	        }
-	        Write-Verbose " [Test-KMSServerDiscovery] :: Creating Hash Table"    
-	        $myobj = @{}
-	        switch -regex ($results -split "\n")
-	        {
-	            $NameRegEx  {
-	                            Write-Verbose " [Test-KMSServerDiscovery] :: ComputerName = $($Matches.HostName)"    
-	                            $myobj.ComputerName = $Matches.HostName
-	                        }
-	            $PortRegEX  {
-	                            Write-Verbose " [Test-KMSServerDiscovery] :: IP = $($Matches.Port)"
-	                            $myobj.Port = $Matches.Port
-	                        }
-	            Default     {
-	                            Write-Verbose " [Test-KMSServerDiscovery] :: Processing line: $_"
-	                        }
-	        }
-	        Write-Verbose " [Test-KMSServerDiscovery] :: Creating Object"
-	        $obj = New-Object PSObject -Property $myobj
-	        $obj.PSTypeNames.Clear()
-	        $obj.PSTypeNames.Add('BSonPosh.KMS.DiscoveryResult')
-	        $obj
-	    }
-	    catch
-	    {
-	        Write-Verbose " [Test-KMSServerDiscovery] :: Error: $($Error[0])"
-	    }
-	
+
+	[Cmdletbinding()]
+	Param($DNSSuffix)
+
+	Write-Verbose " [Test-KMSServerDiscovery] :: cmdlet started"
+	Write-Verbose " [Test-KMSServerDiscovery] :: Getting dns primary suffix from registry"
+	if (!$DNSSuffix) {
+		$key = Get-Item -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters
+		$DNSSuffix = $key.GetValue("Domain")
 	}
-	#endregion 
-	
-	#region Test-KMSSupport 
-	
-	function Test-KMSSupport 
-	{
-	        
-	    <#
-	        .Synopsis 
+	Write-Verbose " [Test-KMSServerDiscovery] :: DNS Suffix = $DNSSuffix"
+	$record = "_vlmcs._tcp.${DNSSuffix}"
+	Write-Verbose " [Test-KMSServerDiscovery] :: SRV Record to query for = $record"
+	$NameRegEx = "\s+svr hostname   = (?<HostName>.*)$"
+	$PortRegEX = "\s+(port)\s+ = (?<Port>\d+)"
+	try {
+		Write-Verbose " [Test-KMSServerDiscovery] :: Running nslookup"
+		Write-Verbose " [Test-KMSServerDiscovery] :: Command - nslookup -type=srv $record 2>1 | select-string `"svr hostname`" -Context 4,0"
+		$results = nslookup -type=srv $record 2>1 | Select-String "svr hostname" -Context 4, 0
+		if ($results) {
+			Write-Verbose " [Test-KMSServerDiscovery] :: Found Entry: $Results"
+		}
+		else {
+			Write-Verbose " [Test-KMSServerDiscovery] :: No Results found"
+			return
+		}
+		Write-Verbose " [Test-KMSServerDiscovery] :: Creating Hash Table"
+		$myobj = @{}
+		switch -regex ($results -split "\n") {
+			$NameRegEx {
+				Write-Verbose " [Test-KMSServerDiscovery] :: ComputerName = $($Matches.HostName)"
+				$myobj.ComputerName = $Matches.HostName
+			}
+			$PortRegEX {
+				Write-Verbose " [Test-KMSServerDiscovery] :: IP = $($Matches.Port)"
+				$myobj.Port = $Matches.Port
+			}
+			Default {
+				Write-Verbose " [Test-KMSServerDiscovery] :: Processing line: $_"
+			}
+		}
+		Write-Verbose " [Test-KMSServerDiscovery] :: Creating Object"
+		$obj = New-Object PSObject -Property $myobj
+		$obj.PSTypeNames.Clear()
+		$obj.PSTypeNames.Add('BSonPosh.KMS.DiscoveryResult')
+		$obj
+	}
+	catch {
+		Write-Verbose " [Test-KMSServerDiscovery] :: Error: $($Error[0])"
+	}
+
+}
+#endregion
+
+#region Test-KMSSupport
+
+function Test-KMSSupport {
+
+	<#
+	        .Synopsis
 	            Test machine for KMS Support.
-	            
+
 	        .Description
 	            Test machine for KMS Support.
-	            
+
 	        .Parameter ComputerName
 	            Name of the Computer to test KMS Support on (Default is localhost.)
-	            
+
 	        .Example
 	            Test-KMSSupport
 	            Description
 	            -----------
 	            Test KMS Support on local machine
-	    
+
 	        .Example
 	            Test-KMSSupport -ComputerName MyServer
 	            Description
 	            -----------
 	            Test KMS Support on MyServer
-	            
+
 	        .Example
 	            $Servers | Test-KMSSupport
 	            Description
 	            -----------
 	            Test KMS Support for each machine in the pipeline
-	            
+
 	        .OUTPUTS
 	            Object
-	            
+
 	        .INPUTS
 	            System.String
-	            
+
 	        .Link
 	            N/A
-	            
+
 	        .Notes
 	            NAME:      Test-KMSSupport
 	            AUTHOR:    bsonposh
@@ -4446,58 +4121,51 @@ function Main {
 	            Version:   1
 	            #Requires -Version 2.0
 	    #>
-	    
-	    [Cmdletbinding()]
-	    Param(
-	    
-	        [alias('dnsHostName')]
-	        [Parameter(ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName = $Env:COMPUTERNAME
-	        
-	    )
-	    
-	    Process 
-	    {
-	        Write-Verbose " [Test-KMSSupport] :: Process start"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        Write-Verbose " [Test-KMSSupport] :: Testing Connectivity"
-	        if(Test-Host -ComputerName $ComputerName -TCPPort 135)
-	        {
-	            $Query = "Select __CLASS FROM SoftwareLicensingProduct"
-	            try
-	            {
-	                Write-Verbose " [Test-KMSSupport] :: Running WMI Query"
-	                $Result = Get-WmiObject -Query $Query -ComputerName $ComputerName
-	                Write-Verbose " [Test-KMSSupport] :: Result = $($Result.__CLASS)"
-	                if($Result)
-	                {
-	                    Write-Verbose " [Test-KMSSupport] :: Return $_"
-	                    $_
-	                }
-	            }
-	            catch
-	            {
-	                Write-Verbose " [Test-KMSSupport] :: Error: $($Error[0])"
-	            }
-	        }
-	        else
-	        {
-	            Write-Verbose " [Test-KMSSupport] :: Failed Connectivity Test"
-	        }
-	    
-	    }
+
+	[Cmdletbinding()]
+	Param(
+
+		[alias('dnsHostName')]
+		[Parameter(ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName = $Env:COMPUTERNAME
+
+	)
+
+	Process {
+		Write-Verbose " [Test-KMSSupport] :: Process start"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+		Write-Verbose " [Test-KMSSupport] :: Testing Connectivity"
+		if (Test-Host -ComputerName $ComputerName -TCPPort 135) {
+			$Query = "Select __CLASS FROM SoftwareLicensingProduct"
+			try {
+				Write-Verbose " [Test-KMSSupport] :: Running WMI Query"
+				$Result = Get-WmiObject -Query $Query -ComputerName $ComputerName
+				Write-Verbose " [Test-KMSSupport] :: Result = $($Result.__CLASS)"
+				if ($Result) {
+					Write-Verbose " [Test-KMSSupport] :: Return $_"
+					$_
+				}
+			}
+			catch {
+				Write-Verbose " [Test-KMSSupport] :: Error: $($Error[0])"
+			}
+		}
+		else {
+			Write-Verbose " [Test-KMSSupport] :: Failed Connectivity Test"
+		}
+
 	}
-	    
-	#endregion 
-	
-	### IP Calculator - source: http://www.indented.co.uk/index.php/2010/01/23/powershell-subnet-math/
-	
-	#region ConvertTo-BinaryIP
-	function ConvertTo-BinaryIP {
-	  <#
+}
+
+#endregion
+
+### IP Calculator - source: http://www.indented.co.uk/index.php/2010/01/23/powershell-subnet-math/
+
+#region ConvertTo-BinaryIP
+function ConvertTo-BinaryIP {
+	<#
 	    .Synopsis
 	      Converts a Decimal IP address into a binary format.
 	    .Description
@@ -4505,23 +4173,23 @@ function Main {
 	    .Parameter IPAddress
 	      An IP Address to convert.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Net.IPAddress]$IPAddress
-	  )
-	 
-	  Process {
-	    Return [String]::Join('.', $( $IPAddress.GetAddressBytes() |
-	      ForEach-Object { [Convert]::ToString($_, 2).PadLeft(8, '0') } ))
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Net.IPAddress]$IPAddress
+	)
+
+	Process {
+		Return [String]::Join('.', $( $IPAddress.GetAddressBytes() |
+					ForEach-Object { [Convert]::ToString($_, 2).PadLeft(8, '0') } ))
 	}
-	#endregion ConvertTo-BinaryIP
-	
-	#region ConvertTo-DecimalIP
-	function ConvertTo-DecimalIP {
-	  <#
+}
+#endregion ConvertTo-BinaryIP
+
+#region ConvertTo-DecimalIP
+function ConvertTo-DecimalIP {
+	<#
 	    .Synopsis
 	      Converts a Decimal IP address into a 32-bit unsigned integer.
 	    .Description
@@ -4529,25 +4197,25 @@ function Main {
 	    .Parameter IPAddress
 	      An IP Address to convert.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Net.IPAddress]$IPAddress
-	  )
-	 
-	  Process {
-	    $i = 3; $DecimalIP = 0;
-	    $IPAddress.GetAddressBytes() | ForEach-Object { $DecimalIP += $_ * [Math]::Pow(256, $i); $i-- }
-	 
-	    Return [UInt32]$DecimalIP
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Net.IPAddress]$IPAddress
+	)
+
+	Process {
+		$i = 3; $DecimalIP = 0;
+		$IPAddress.GetAddressBytes() | ForEach-Object { $DecimalIP += $_ * [Math]::Pow(256, $i); $i-- }
+
+		Return [UInt32]$DecimalIP
 	}
-	#endregion ConvertTo-DecimalIP
-	
-	#region ConvertTo-DottedDecimalIP
-	function ConvertTo-DottedDecimalIP {
-	  <#
+}
+#endregion ConvertTo-DecimalIP
+
+#region ConvertTo-DottedDecimalIP
+function ConvertTo-DottedDecimalIP {
+	<#
 	    .Synopsis
 	      Returns a dotted decimal IP address from either an unsigned 32-bit integer or a dotted binary string.
 	    .Description
@@ -4555,39 +4223,39 @@ function Main {
 	    .Parameter IPAddress
 	      A string representation of an IP address from either UInt32 or dotted binary.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [String]$IPAddress
-	  )
-	 
-	  Process {
-	    Switch -RegEx ($IPAddress) {
-	      "([01]{8}\.){3}[01]{8}" {
-	        Return [String]::Join('.', $( $IPAddress.Split('.') | ForEach-Object { [Convert]::ToUInt32($_, 2) } ))
-	      }
-	      "\d" {
-	        $IPAddress = [UInt32]$IPAddress
-	        $DottedIP = $( For ($i = 3; $i -gt -1; $i--) {
-	          $Remainder = $IPAddress % [Math]::Pow(256, $i)
-	          ($IPAddress - $Remainder) / [Math]::Pow(256, $i)
-	          $IPAddress = $Remainder
-	         } )
-	 
-	        Return [String]::Join('.', $DottedIP)
-	      }
-	      default {
-	        Write-Error "Cannot convert this format"
-	      }
-	    }
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[String]$IPAddress
+	)
+
+	Process {
+		Switch -RegEx ($IPAddress) {
+			"([01]{8}\.){3}[01]{8}" {
+				Return [String]::Join('.', $( $IPAddress.Split('.') | ForEach-Object { [Convert]::ToUInt32($_, 2) } ))
+			}
+			"\d" {
+				$IPAddress = [UInt32]$IPAddress
+				$DottedIP = $( For ($i = 3; $i -gt -1; $i--) {
+						$Remainder = $IPAddress % [Math]::Pow(256, $i)
+						($IPAddress - $Remainder) / [Math]::Pow(256, $i)
+						$IPAddress = $Remainder
+					} )
+
+				Return [String]::Join('.', $DottedIP)
+			}
+			default {
+				Write-Error "Cannot convert this format"
+			}
+		}
 	}
-	#endregion ConvertTo-DottedDecimalIP
-	
-	#region ConvertTo-MaskLength
-	function ConvertTo-MaskLength {
-	  <#
+}
+#endregion ConvertTo-DottedDecimalIP
+
+#region ConvertTo-MaskLength
+function ConvertTo-MaskLength {
+	<#
 	    .Synopsis
 	      Returns the length of a subnet mask.
 	    .Description
@@ -4596,25 +4264,25 @@ function Main {
 	    .Parameter SubnetMask
 	      A subnet mask to convert into length
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Alias("Mask")]
-	    [Net.IPAddress]$SubnetMask
-	  )
-	 
-	  Process {
-	    $Bits = "$( $SubnetMask.GetAddressBytes() | ForEach-Object { [Convert]::ToString($_, 2) } )" -Replace '[\s0]'
-	 
-	    Return $Bits.Length
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Alias("Mask")]
+		[Net.IPAddress]$SubnetMask
+	)
+
+	Process {
+		$Bits = "$( $SubnetMask.GetAddressBytes() | ForEach-Object { [Convert]::ToString($_, 2) } )" -Replace '[\s0]'
+
+		Return $Bits.Length
 	}
-	#endregion ConvertTo-MaskLength
-	
-	#region ConvertTo-Mask
-	function ConvertTo-Mask {
-	  <#
+}
+#endregion ConvertTo-MaskLength
+
+#region ConvertTo-Mask
+function ConvertTo-Mask {
+	<#
 	    .Synopsis
 	      Returns a dotted decimal subnet mask from a mask length.
 	    .Description
@@ -4624,24 +4292,24 @@ function Main {
 	    .Parameter MaskLength
 	      The number of bits which must be masked.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Alias("Length")]
-	    [ValidateRange(0, 32)]
-	    $MaskLength
-	  )
-	 
-	  Process {
-	    Return ConvertTo-DottedDecimalIP ([Convert]::ToUInt32($(("1" * $MaskLength).PadRight(32, "0")), 2))
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Alias("Length")]
+		[ValidateRange(0, 32)]
+		$MaskLength
+	)
+
+	Process {
+		Return ConvertTo-DottedDecimalIP ([Convert]::ToUInt32($(("1" * $MaskLength).PadRight(32, "0")), 2))
 	}
-	#endregion ConvertTo-Mask
-	
-	#region Get-NetworkAddress
-	function Get-NetworkAddress {
-	  <#
+}
+#endregion ConvertTo-Mask
+
+#region Get-NetworkAddress
+function Get-NetworkAddress {
+	<#
 	    .Synopsis
 	      Takes an IP address and subnet mask then calculates the network address for the range.
 	    .Description
@@ -4653,26 +4321,26 @@ function Main {
 	    .Parameter SubnetMask
 	      The subnet mask for the network.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Net.IPAddress]$IPAddress,
-	 
-	    [Parameter(Mandatory = $True, Position = 1)]
-	    [Alias("Mask")]
-	    [Net.IPAddress]$SubnetMask
-	  )
-	 
-	  Process {
-	    Return ConvertTo-DottedDecimalIP ((ConvertTo-DecimalIP $IPAddress) -BAnd (ConvertTo-DecimalIP $SubnetMask))
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Net.IPAddress]$IPAddress,
+
+		[Parameter(Mandatory = $True, Position = 1)]
+		[Alias("Mask")]
+		[Net.IPAddress]$SubnetMask
+	)
+
+	Process {
+		Return ConvertTo-DottedDecimalIP ((ConvertTo-DecimalIP $IPAddress) -BAnd (ConvertTo-DecimalIP $SubnetMask))
 	}
-	#endregion Get-NetworkAddress
-	
-	#region Get-BroadcastAddress
-	function Get-BroadcastAddress {
-	  <#
+}
+#endregion Get-NetworkAddress
+
+#region Get-BroadcastAddress
+function Get-BroadcastAddress {
+	<#
 	    .Synopsis
 	      Takes an IP address and subnet mask then calculates the broadcast address for the range.
 	    .Description
@@ -4684,342 +4352,331 @@ function Main {
 	    .Parameter SubnetMask
 	      The subnet mask for the network.
 	  #>
-	 
-	  [CmdLetBinding()]
-	  Param(
-	    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
-	    [Net.IPAddress]$IPAddress, 
-	 
-	    [Parameter(Mandatory = $True, Position = 1)]
-	    [Alias("Mask")]
-	    [Net.IPAddress]$SubnetMask
-	  )
-	 
-	  Process {
-	    Return ConvertTo-DottedDecimalIP $((ConvertTo-DecimalIP $IPAddress) -BOr `
-	      ((-BNot (ConvertTo-DecimalIP $SubnetMask)) -BAnd [UInt32]::MaxValue))
-	  }
+
+	[CmdLetBinding()]
+	Param(
+		[Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+		[Net.IPAddress]$IPAddress,
+
+		[Parameter(Mandatory = $True, Position = 1)]
+		[Alias("Mask")]
+		[Net.IPAddress]$SubnetMask
+	)
+
+	Process {
+		Return ConvertTo-DottedDecimalIP $((ConvertTo-DecimalIP $IPAddress) -BOr `
+			((-BNot (ConvertTo-DecimalIP $SubnetMask)) -BAnd [UInt32]::MaxValue))
 	}
-	#endregion Get-BroadcastAddress
-	
-	#region Get-NetworkSummary
-	function Get-NetworkSummary ( [String]$IP, [String]$Mask ) {
-	  If ($IP.Contains("/"))
-	  {
-	    $Temp = $IP.Split("/")
-	    $IP = $Temp[0]
-	    $Mask = $Temp[1]
-	  }
-	 
-	  If (!$Mask.Contains("."))
-	  {
-	    $Mask = ConvertTo-Mask $Mask
-	  }
-	 
-	  $DecimalIP = ConvertTo-DecimalIP $IP
-	  $DecimalMask = ConvertTo-DecimalIP $Mask
-	 
-	  $Network = $DecimalIP -BAnd $DecimalMask
-	  $Broadcast = $DecimalIP -BOr
-	    ((-BNot $DecimalMask) -BAnd [UInt32]::MaxValue)
-	  $NetworkAddress = ConvertTo-DottedDecimalIP $Network
-	  $RangeStart = ConvertTo-DottedDecimalIP ($Network + 1)
-	  $RangeEnd = ConvertTo-DottedDecimalIP ($Broadcast - 1)
-	  $BroadcastAddress = ConvertTo-DottedDecimalIP $Broadcast
-	  $MaskLength = ConvertTo-MaskLength $Mask
-	 
-	  $BinaryIP = ConvertTo-BinaryIP $IP; $Private = $False
-	  Switch -RegEx ($BinaryIP)
-	  {
-	    "^1111"  { $Class = "E"; $SubnetBitMap = "1111" }
-	    "^1110"  { $Class = "D"; $SubnetBitMap = "1110" }
-	    "^110"   {
-	      $Class = "C"
-	      If ($BinaryIP -Match "^11000000.10101000") { $Private = $True } }
-	    "^10"    {
-	      $Class = "B"
-	      If ($BinaryIP -Match "^10101100.0001") { $Private = $True } }
-	    "^0"     {
-	      $Class = "A"
-	      If ($BinaryIP -Match "^00001010") { $Private = $True } }
-	   }   
-	 
-	  $NetInfo = New-Object Object
-	  Add-Member NoteProperty "Network" -Input $NetInfo -Value $NetworkAddress
-	  Add-Member NoteProperty "Broadcast" -Input $NetInfo -Value $BroadcastAddress
-	  Add-Member NoteProperty "Range" -Input $NetInfo `
-	    -Value "$RangeStart - $RangeEnd"
-	  Add-Member NoteProperty "Mask" -Input $NetInfo -Value $Mask
-	  Add-Member NoteProperty "MaskLength" -Input $NetInfo -Value $MaskLength
-	  Add-Member NoteProperty "Hosts" -Input $NetInfo `
-	    -Value $($Broadcast - $Network - 1)
-	  Add-Member NoteProperty "Class" -Input $NetInfo -Value $Class
-	  Add-Member NoteProperty "IsPrivate" -Input $NetInfo -Value $Private
-	 
-	  Return $NetInfo
+}
+#endregion Get-BroadcastAddress
+
+#region Get-NetworkSummary
+function Get-NetworkSummary ( [String]$IP, [String]$Mask ) {
+	If ($IP.Contains("/")) {
+		$Temp = $IP.Split("/")
+		$IP = $Temp[0]
+		$Mask = $Temp[1]
 	}
-	#endregion Get-NetworkSummary
-	
-	#region Get-NetworkRange
-	function Get-NetworkRange( [String]$IP, [String]$Mask ) {
-	  If ($IP.Contains("/"))
-	  {
-	    $Temp = $IP.Split("/")
-	    $IP = $Temp[0]
-	    $Mask = $Temp[1]
-	  }
-	 
-	  If (!$Mask.Contains("."))
-	  {
-	    $Mask = ConvertTo-Mask $Mask
-	  }
-	 
-	  $DecimalIP = ConvertTo-DecimalIP $IP
-	  $DecimalMask = ConvertTo-DecimalIP $Mask
-	 
-	  $Network = $DecimalIP -BAnd $DecimalMask
-	  $Broadcast = $DecimalIP -BOr ((-BNot $DecimalMask) -BAnd [UInt32]::MaxValue)
-	 
-	  For ($i = $($Network + 1); $i -lt $Broadcast; $i++) {
-	    ConvertTo-DottedDecimalIP $i
-	  }
+
+	If (!$Mask.Contains(".")) {
+		$Mask = ConvertTo-Mask $Mask
 	}
-	#endregion Get-NetworkRange
-	
-	### Technet Functions http://technet.com
-	
-	#region Test-Server
-	#http://gallery.technet.microsoft.com/scriptcenter/Powershell-Test-Server-e0cdea9a
-	function Test-Server{
+
+	$DecimalIP = ConvertTo-DecimalIP $IP
+	$DecimalMask = ConvertTo-DecimalIP $Mask
+
+	$Network = $DecimalIP -BAnd $DecimalMask
+	$Broadcast = $DecimalIP -BOr
+	((-BNot $DecimalMask) -BAnd [UInt32]::MaxValue)
+	$NetworkAddress = ConvertTo-DottedDecimalIP $Network
+	$RangeStart = ConvertTo-DottedDecimalIP ($Network + 1)
+	$RangeEnd = ConvertTo-DottedDecimalIP ($Broadcast - 1)
+	$BroadcastAddress = ConvertTo-DottedDecimalIP $Broadcast
+	$MaskLength = ConvertTo-MaskLength $Mask
+
+	$BinaryIP = ConvertTo-BinaryIP $IP; $Private = $False
+	Switch -RegEx ($BinaryIP) {
+		"^1111" { $Class = "E"; $SubnetBitMap = "1111" }
+		"^1110" { $Class = "D"; $SubnetBitMap = "1110" }
+		"^110" {
+			$Class = "C"
+			If ($BinaryIP -Match "^11000000.10101000") { $Private = $True }
+		}
+		"^10" {
+			$Class = "B"
+			If ($BinaryIP -Match "^10101100.0001") { $Private = $True }
+		}
+		"^0" {
+			$Class = "A"
+			If ($BinaryIP -Match "^00001010") { $Private = $True }
+		}
+	}
+
+	$NetInfo = New-Object Object
+	Add-Member NoteProperty "Network" -Input $NetInfo -Value $NetworkAddress
+	Add-Member NoteProperty "Broadcast" -Input $NetInfo -Value $BroadcastAddress
+	Add-Member NoteProperty "Range" -Input $NetInfo `
+		-Value "$RangeStart - $RangeEnd"
+	Add-Member NoteProperty "Mask" -Input $NetInfo -Value $Mask
+	Add-Member NoteProperty "MaskLength" -Input $NetInfo -Value $MaskLength
+	Add-Member NoteProperty "Hosts" -Input $NetInfo `
+		-Value $($Broadcast - $Network - 1)
+	Add-Member NoteProperty "Class" -Input $NetInfo -Value $Class
+	Add-Member NoteProperty "IsPrivate" -Input $NetInfo -Value $Private
+
+	Return $NetInfo
+}
+#endregion Get-NetworkSummary
+
+#region Get-NetworkRange
+function Get-NetworkRange( [String]$IP, [String]$Mask ) {
+	If ($IP.Contains("/")) {
+		$Temp = $IP.Split("/")
+		$IP = $Temp[0]
+		$Mask = $Temp[1]
+	}
+
+	If (!$Mask.Contains(".")) {
+		$Mask = ConvertTo-Mask $Mask
+	}
+
+	$DecimalIP = ConvertTo-DecimalIP $IP
+	$DecimalMask = ConvertTo-DecimalIP $Mask
+
+	$Network = $DecimalIP -BAnd $DecimalMask
+	$Broadcast = $DecimalIP -BOr ((-BNot $DecimalMask) -BAnd [UInt32]::MaxValue)
+
+	For ($i = $($Network + 1); $i -lt $Broadcast; $i++) {
+		ConvertTo-DottedDecimalIP $i
+	}
+}
+#endregion Get-NetworkRange
+
+### Technet Functions http://technet.com
+
+#region Test-Server
+#http://gallery.technet.microsoft.com/scriptcenter/Powershell-Test-Server-e0cdea9a
+function Test-Server {
 	[cmdletBinding()]
 	param(
-		[parameter(Mandatory=$true,ValueFromPipeline=$true)]
+		[parameter(Mandatory = $true, ValueFromPipeline = $true)]
 		[string[]]$ComputerName,
-		[parameter(Mandatory=$false)]
+		[parameter(Mandatory = $false)]
 		[switch]$CredSSP,
 		[Management.Automation.PSCredential] $Credential)
-		
-	begin{
+
+	begin {
 		$total = Get-Date
 		$results = @()
-		if($credssp){if(!($credential)){Write-Host "must supply Credentials with CredSSP test";break}}
+		if ($credssp) { if (!($credential)) { Write-Host "must supply Credentials with CredSSP test"; break } }
 	}
-	process{
-	    foreach($name in $computername)
-	    {
-		$dt = $cdt= Get-Date
-		Write-verbose "Testing: $Name"
-		$failed = 0
-		try{
-		$DNSEntity = [Net.Dns]::GetHostEntry($name)
-		$domain = ($DNSEntity.hostname).replace("$name.","")
-		$ips = $DNSEntity.AddressList | %{$_.IPAddressToString}
-		}
-		catch
-		{
-			$rst = "" |  select Name,IP,Domain,Ping,WSMAN,CredSSP,RemoteReg,RPC,RDP
-			$rst.name = $name
-			$results += $rst
-			$failed = 1
-		}
-		Write-verbose "DNS:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-		if($failed -eq 0){
-		foreach($ip in $ips)
-		{
-		    
-			$rst = "" |  select Name,IP,Domain,Ping,WSMAN,CredSSP,RemoteReg,RPC,RDP
-		    $rst.name = $name
-			$rst.ip = $ip
-			$rst.domain = $domain
-			####RDP Check (firewall may block rest so do before ping
-			try{
-	            $socket = New-Object Net.Sockets.TcpClient($name, 3389)
-			  if($socket -eq $null)
-			  {
-				 $rst.RDP = $false
-			  }
-			  else
-			  {
-				 $rst.RDP = $true
-				 $socket.close()
-			  }
-	       }
-	       catch
-	       {
-	            $rst.RDP = $false
-	       }
-			Write-verbose "RDP:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-	        #########ping
-		    if(test-connection $ip -count 1 -Quiet)
-		    {
-		        Write-verbose "PING:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-				$rst.ping = $true
-				try{############wsman
-					Test-WSMan $ip | Out-Null
-					$rst.WSMAN = $true
-					}
-				catch
-					{$rst.WSMAN = $false}
-					Write-verbose "WSMAN:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-				if($rst.WSMAN -and $credssp) ########### credssp
-				{
-					try{
-						Test-WSMan $ip -Authentication Credssp -Credential $cred
-						$rst.CredSSP = $true
-						}
-					catch
-						{$rst.CredSSP = $false}
-					Write-verbose "CredSSP:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-				}
-				try ########remote reg
-				{
-					[Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ip) | Out-Null
-					$rst.remotereg = $true
-				}
-				catch
-					{$rst.remotereg = $false}
-				Write-verbose "remote reg:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)"
-				try ######### wmi
-				{	
-					$w = [wmi] ''
-					$w.psbase.options.timeout = 15000000
-					$w.path = "\\$Name\root\cimv2:Win32_ComputerSystem.Name='$Name'"
-					$w | select none | Out-Null
-					$rst.RPC = $true
-				}
-				catch
-					{$rst.rpc = $false}
-				Write-verbose "WMI:  $((New-TimeSpan $dt ($dt = get-date)).totalseconds)" 
-		    }
-			else
-			{
-				$rst.ping = $false
-				$rst.wsman = $false
-				$rst.credssp = $false
-				$rst.remotereg = $false
-				$rst.rpc = $false
+	process {
+		foreach ($name in $computername) {
+			$dt = $cdt = Get-Date
+			Write-Verbose "Testing: $Name"
+			$failed = 0
+			try {
+				$DNSEntity = [Net.Dns]::GetHostEntry($name)
+				$domain = ($DNSEntity.hostname).replace("$name.", "")
+				$ips = $DNSEntity.AddressList | ForEach-Object { $_.IPAddressToString }
 			}
-			$results += $rst	
-		}}
-		Write-Verbose "Time for $($Name): $((New-TimeSpan $cdt ($dt)).totalseconds)"
-		Write-Verbose "----------------------------"
+			catch {
+				$rst = "" | Select-Object Name, IP, Domain, Ping, WSMAN, CredSSP, RemoteReg, RPC, RDP
+				$rst.name = $name
+				$results += $rst
+				$failed = 1
+			}
+			Write-Verbose "DNS:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+			if ($failed -eq 0) {
+				foreach ($ip in $ips) {
+
+					$rst = "" | Select-Object Name, IP, Domain, Ping, WSMAN, CredSSP, RemoteReg, RPC, RDP
+					$rst.name = $name
+					$rst.ip = $ip
+					$rst.domain = $domain
+					####RDP Check (firewall may block rest so do before ping
+					try {
+						$socket = New-Object Net.Sockets.TcpClient($name, 3389)
+						if ($socket -eq $null) {
+							$rst.RDP = $false
+						}
+						else {
+							$rst.RDP = $true
+							$socket.close()
+						}
+					}
+					catch {
+						$rst.RDP = $false
+					}
+					Write-Verbose "RDP:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+					#########ping
+					if (Test-Connection $ip -Count 1 -Quiet) {
+						Write-Verbose "PING:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+						$rst.ping = $true
+						try {
+							############wsman
+							Test-WSMan $ip | Out-Null
+							$rst.WSMAN = $true
+						}
+						catch
+						{ $rst.WSMAN = $false }
+						Write-Verbose "WSMAN:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+						if ($rst.WSMAN -and $credssp) { ########### credssp
+							try {
+								Test-WSMan $ip -Authentication Credssp -Credential $cred
+								$rst.CredSSP = $true
+							}
+							catch
+							{ $rst.CredSSP = $false }
+							Write-Verbose "CredSSP:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+						}
+						try { ########remote reg
+							[Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $ip) | Out-Null
+							$rst.remotereg = $true
+						}
+						catch
+						{ $rst.remotereg = $false }
+						Write-Verbose "remote reg:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+						try { ######### wmi
+							$w = [wmi] ''
+							$w.psbase.options.timeout = 15000000
+							$w.path = "\\$Name\root\cimv2:Win32_ComputerSystem.Name='$Name'"
+							$w | Select-Object none | Out-Null
+							$rst.RPC = $true
+						}
+						catch
+						{ $rst.rpc = $false }
+						Write-Verbose "WMI:  $((New-TimeSpan $dt ($dt = Get-Date)).totalseconds)"
+					}
+					else {
+						$rst.ping = $false
+						$rst.wsman = $false
+						$rst.credssp = $false
+						$rst.remotereg = $false
+						$rst.rpc = $false
+					}
+					$results += $rst
+				}
+			}
+			Write-Verbose "Time for $($Name): $((New-TimeSpan $cdt ($dt)).totalseconds)"
+			Write-Verbose "----------------------------"
+		}
 	}
-	}
-	end{
+	end {
 		Write-Verbose "Time for all: $((New-TimeSpan $total ($dt)).totalseconds)"
 		Write-Verbose "----------------------------"
-	return $results
+		return $results
 	}
+}
+#endregion
+
+#region Get-IpConfig
+# ==========================================================
+# Get-IPConfig.ps1
+# Made By : Assaf Miron
+#  http://assaf.miron.googlepages.com
+# Description : Formats the IP Config information into powershell
+# ==========================================================
+function Get-IPConfig {
+	param ( $Computername = "LocalHost",
+		$OnlyConnectedNetworkAdapters = $true
+	)
+	Get-WmiObject -Class Win32_NetworkAdapterConfiguration -ComputerName $ComputerName | Where-Object { $_.IPEnabled -eq $OnlyConnectedNetworkAdapters } | Format-List @{ Label = "Computer Name"; Expression = { $_.__SERVER } }, IPEnabled, Description, MACAddress, IPAddress, IPSubnet, DefaultIPGateway, DHCPEnabled, DHCPServer, @{ Label = "DHCP Lease Expires"; Expression = { [dateTime]$_.DHCPLeaseExpires } }, @{ Label = "DHCP Lease Obtained"; Expression = { [dateTime]$_.DHCPLeaseObtained } }
+}
+#endregion
+
+#region get-iisProperties http://gallery.technet.microsoft.com/scriptcenter/20a73ee4-5b17-49e8-8c33-3e08fd066af2
+function get-iisProperties {
+	<#
+		.SYNOPSIS
+		    Retrieves IIS properties for Virtual and Web Directories residing on a server.
+		.DESCRIPTION
+		    Retrieves IIS properties for Virtual and Web Directories residing on a server.
+		.PARAMETER name
+		    Name of the IIS server you wish to query.
+		.PARAMETER UseDefaultCredentials
+		    Use the currently authenticated user's credentials
+		.NOTES
+		    Name: Get-iisProperties
+		    Author: Marc Carter
+		    DateCreated: 18Mar2011
+		.EXAMPLE
+		    Get-iisProperties -ComputerName "localhost"
+
+		Description
+		------------
+		Returns IIS properties for Virtual and Web Directories residing on a server.
+		#>
+	[cmdletbinding(
+		DefaultParameterSetName = 'ComputerName',
+		ConfirmImpact = 'low'
+	)]
+	Param(
+		[Parameter(
+			Mandatory = $True,
+			Position = 0,
+			ParameterSetName = '',
+			ValueFromPipeline = $True)]
+		[string][ValidatePattern(".{2,}")]$ComputerName
+	)
+	Begin {
+		$error.clear()
+		$ComputerName = $ComputerName.toUpper()
+		$array = @()
 	}
-	#endregion
-	
-	#region Get-IpConfig
-	# ==========================================================
-	# Get-IPConfig.ps1
-	# Made By : Assaf Miron
-	#  http://assaf.miron.googlepages.com
-	# Description : Formats the IP Config information into powershell
-	# ==========================================================
-	function Get-IPConfig{
-		param ( $Computername="LocalHost",
-	 	$OnlyConnectedNetworkAdapters=$true
-	   )
-			gwmi -Class Win32_NetworkAdapterConfiguration -ComputerName $ComputerName | Where { $_.IPEnabled -eq $OnlyConnectedNetworkAdapters } | Format-List @{ Label="Computer Name"; Expression= { $_.__SERVER }}, IPEnabled, Description, MACAddress, IPAddress, IPSubnet, DefaultIPGateway, DHCPEnabled, DHCPServer, @{ Label="DHCP Lease Expires"; Expression= { [dateTime]$_.DHCPLeaseExpires }}, @{ Label="DHCP Lease Obtained"; Expression= { [dateTime]$_.DHCPLeaseObtained }}
+
+	Process {
+		#define ManagementObjectSearcher, Path and Authentication
+		$objWMI = [WmiSearcher] "Select * From IIsWebServer"
+		$objWMI.Scope.Path = "\\$ComputerName\root\microsoftiisv2"
+		$objWMI.Scope.Options.Authentication = [System.Management.AuthenticationLevel]::PacketPrivacy
+		$ComputerName
+
+		trap { 'An Error occured: {0}' -f $_.Exception.Message; break }
+
+		#Get System.Management.ManagementObjectCollection
+		$obj = $objWMI.Get()
+
+		#Iterate through each object
+		$obj | ForEach-Object {
+			$Identifier = $_.Name
+			[string]$adsiPath = "IIS://$ComputerName/" + $_.name
+			$iis = [adsi]$("IIS://$ComputerName/" + $_.name)
+			#Enum Child Items but only IIsWebVirtualDir & IIsWebDirectory
+			$iis.Psbase.Children | Where-Object { $_.SchemaClassName -eq "IIsWebVirtualDir" -or $_.SchemaClassName -eq "IIsWebDirectory" } | ForEach-Object {
+				$currentPath = $adsiPath + "/" + $_.Name
+				#Enum Subordinate Child Items
+				$_.Psbase.Children | Where-Object { $_.SchemaClassName -eq "IIsWebVirtualDir" } | Select-Object Name, AppPoolId, SchemaClassName, Path | ForEach-Object {
+					$subIIS = [adsi]$("$currentPath/" + $_.name)
+					foreach ($mapping in $subIIS.ScriptMaps) {
+						if ($mapping.StartsWith(".aspx")) { $NETversion = $mapping.substring(($mapping.toLower()).indexOf("framework\") + 10, 9) }
+					}
+					#Define System.Object | add member properties
+					$tmpObj = New-Object Object
+					$tmpObj | Add-Member -MemberType noteproperty -Name "Name" -Value $_.Name
+					$tmpObj | Add-Member -MemberType noteproperty -Name "Identifier" -Value $Identifier
+					$tmpObj | Add-Member -MemberType noteproperty -Name "ASP.NET" -Value $NETversion
+					$tmpObj | Add-Member -MemberType noteproperty -Name "AppPoolId" -Value $($_.AppPoolId)
+					$tmpObj | Add-Member -MemberType noteproperty -Name "SchemaClassName" -Value $_.SchemaClassName
+					$tmpObj | Add-Member -MemberType noteproperty -Name "Path" -Value $($_.Path)
+
+					#Populate Array with Object properties
+					$array += $tmpObj
+				}
+			}
+		}
+	}#End process
+	End {
+		#Display results
+		$array | Format-Table -auto
 	}
-	#endregion
-	
-	#region get-iisProperties http://gallery.technet.microsoft.com/scriptcenter/20a73ee4-5b17-49e8-8c33-3e08fd066af2
-	function get-iisProperties {  
-		<#    
-		.SYNOPSIS    
-		    Retrieves IIS properties for Virtual and Web Directories residing on a server. 
-		.DESCRIPTION  
-		    Retrieves IIS properties for Virtual and Web Directories residing on a server. 
-		.PARAMETER name 
-		    Name of the IIS server you wish to query.  
-		.PARAMETER UseDefaultCredentials  
-		    Use the currently authenticated user's credentials    
-		.NOTES    
-		    Name: Get-iisProperties 
-		    Author: Marc Carter 
-		    DateCreated: 18Mar2011          
-		.EXAMPLE    
-		    Get-iisProperties -ComputerName "localhost"  
-		      
-		Description  
-		------------  
-		Returns IIS properties for Virtual and Web Directories residing on a server.  
-		#>   
-		[cmdletbinding(  
-		    DefaultParameterSetName = 'ComputerName',  
-		    ConfirmImpact = 'low'  
-		)]  
-		Param(  
-		    [Parameter(  
-		        Mandatory = $True,  
-		        Position = 0,  
-		        ParameterSetName = '',  
-		        ValueFromPipeline = $True)]  
-		        [string][ValidatePattern(".{2,}")]$ComputerName 
-		)  
-		    Begin{       
-		        $error.clear() 
-		        $ComputerName = $ComputerName.toUpper() 
-		        $array = @() 
-		    } 
-		 
-		    Process{ 
-		        #define ManagementObjectSearcher, Path and Authentication 
-		        $objWMI = [WmiSearcher] "Select * From IIsWebServer" 
-		        $objWMI.Scope.Path = "\\$ComputerName\root\microsoftiisv2" 
-		        $objWMI.Scope.Options.Authentication = [System.Management.AuthenticationLevel]::PacketPrivacy 
-		        $ComputerName 
-		 
-		        trap { 'An Error occured: {0}' -f $_.Exception.Message; break } 
-		 
-		        #Get System.Management.ManagementObjectCollection 
-		        $obj = $objWMI.Get() 
-		     
-		        #Iterate through each object 
-		        $obj | % {  
-		            $Identifier = $_.Name 
-		            [string]$adsiPath = "IIS://$ComputerName/"+$_.name 
-		            $iis = [adsi]$("IIS://$ComputerName/"+$_.name) 
-		            #Enum Child Items but only IIsWebVirtualDir & IIsWebDirectory 
-		            $iis.Psbase.Children | where { $_.SchemaClassName -eq "IIsWebVirtualDir" -or $_.SchemaClassName -eq "IIsWebDirectory" } | % { 
-		                $currentPath = $adsiPath+"/"+$_.Name 
-		                #Enum Subordinate Child Items  
-		                $_.Psbase.Children | where { $_.SchemaClassName -eq "IIsWebVirtualDir" } | Select Name, AppPoolId, SchemaClassName, Path | % { 
-		                    $subIIS = [adsi]$("$currentPath/"+$_.name) 
-		                    foreach($mapping in $subIIS.ScriptMaps){ 
-		                        if($mapping.StartsWith(".aspx")){ $NETversion = $mapping.substring(($mapping.toLower()).indexOf("framework\")+10,9) } 
-		                    } 
-		                    #Define System.Object | add member properties 
-		                    $tmpObj = New-Object Object 
-		                    $tmpObj | add-member -membertype noteproperty -name "Name" -value $_.Name 
-		                    $tmpObj | add-member -membertype noteproperty -name "Identifier" -value $Identifier 
-		                    $tmpObj | add-member -membertype noteproperty -name "ASP.NET" -value $NETversion 
-		                    $tmpObj | add-member -membertype noteproperty -name "AppPoolId" -value $($_.AppPoolId) 
-		                    $tmpObj | add-member -membertype noteproperty -name "SchemaClassName" -value $_.SchemaClassName 
-		                    $tmpObj | add-member -membertype noteproperty -name "Path" -value $($_.Path) 
-		                     
-		                    #Populate Array with Object properties 
-		                    $array += $tmpObj 
-		                } 
-		            } 
-		        } 
-		    }#End process 
-		    End{ 
-		        #Display results 
-		        $array | ft -auto 
-		    } 
-		}#End function Get-IISProperties
-	#endregion
-	
-	#region Get-USB
-	
-	function Get-USB {
-	    <#
+}#End function Get-IISProperties
+#endregion
+
+#region Get-USB
+
+function Get-USB {
+	<#
 	    .Synopsis
 	        Gets USB devices attached to the system
 	    .Description
@@ -5027,293 +4684,280 @@ function Main {
 	    .Example
 	        Get-USB
 	    .Example
-	        Get-USB | Group-Object Manufacturer  
+	        Get-USB | Group-Object Manufacturer
 	    .Parameter ComputerName
 	        The name of the computer to get the USB devices from
 	    #>
-	    param($computerName = "localhost")
-	    Get-WmiObject Win32_USBControllerDevice -ComputerName $ComputerName `
-	        -Impersonation Impersonate -Authentication PacketPrivacy | 
-	        Foreach-Object { [Wmi]$_.Dependent }
+	param($computerName = "localhost")
+	Get-WmiObject Win32_USBControllerDevice -ComputerName $ComputerName `
+		-Impersonation Impersonate -Authentication PacketPrivacy |
+		ForEach-Object { [Wmi]$_.Dependent }
+}
+#endregion
+
+#region Get-ComputerComment
+#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
+function Get-ComputerComment( $ComputerName ) {
+	$Registry = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey( "LocalMachine", $ComputerName )
+	if ( $Registry -eq $Null ) {
+		return "Can't connect to the registry"
 	}
-	#endregion
-	
-	#region Get-ComputerComment
-	#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
-	function Get-ComputerComment( $ComputerName ) 
-	{ 
-		$Registry = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey( "LocalMachine", $ComputerName ) 
-	    if ( $Registry -eq $Null ) { 
-	        return "Can't connect to the registry"
-	    } 
-	    $RegKey= $Registry.OpenSubKey( "SYSTEM\CurrentControlSet\Services\lanmanserver\parameters" ) 
-	    if ( $RegKey -eq $Null ) { 
-	        return "No Computer Description"
-	    } 
-	 
-	    [string]$Description = $RegKey.GetValue("srvcomment") 
-	    if ( $Description -eq $Null ) { 
-	        $Description = "No Computer Description" 
-	    } 
-	    return "Computer Description: $Description "
-	} 
-	#endregion
-	
-	#region Set-ComputerComment
-	#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
-	function Set-ComputerComment 
-	{
-		param(
+	$RegKey = $Registry.OpenSubKey( "SYSTEM\CurrentControlSet\Services\lanmanserver\parameters" )
+	if ( $RegKey -eq $Null ) {
+		return "No Computer Description"
+	}
+
+	[string]$Description = $RegKey.GetValue("srvcomment")
+	if ( $Description -eq $Null ) {
+		$Description = "No Computer Description"
+	}
+	return "Computer Description: $Description "
+}
+#endregion
+
+#region Set-ComputerComment
+#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
+function Set-ComputerComment {
+	param(
 		[string]$ComputerName,
 		[string]$Description
-		)
-	    # $OsInfo = Get-WmiObject Win32_OperatingSystem -Computer $Computer 
-	    # $Description  = $OsInfo 
-	    $Registry = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey( "LocalMachine", $ComputerName ) 
-	    if ( $Registry -eq $Null ) { 
-	        return $Null 
-	    } 
-	    $RegPermCheck = [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree  
-	    $RegKeyRights = [System.Security.AccessControl.RegistryRights]::SetValue 
-	    $RegKey = $Registry.OpenSubKey( "SYSTEM\CurrentControlSet\Services\lanmanserver\parameters", $RegPermCheck, $RegKeyRights )
-	    if ( $RegKey -eq $Null ) { 
-	        return $Null 
-	    }
-	    $RegKey.SetValue("srvcomment", $Description ) 
-	} 
-	#endregion
-	
-	#region Get-DnsDomain
-	function Get-DnsDomain()
-	#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
-	{ 
-		# --------------------------------------------------------- 
-		# Get the name of the domain this computer belongs to. 
-		# --------------------------------------------------------- 
-	    if ( $Global:DnsDomain -eq $null ) { 
-	        $WmiInfo = get-wmiobject "Win32_NTDomain" | where {$_.DnsForestName -ne $null } 
-	        $Global:DnsDomain = $WmiInfo.DnsForestName 
-	    } 
-	    return $Global:DnsDomain 
-	} 
-	#endregion
-	
-	#region Get-AdDomainPath
-	function Get-AdDomainPath()
-	#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
-	{ 
-	    $DnsDomain = Get-DnsDomain 
-	    $Tokens = $DnsDomain.Split(".") 
-	    $Seperator= "" 
-	    $Path = "" 
-	    foreach ( $Token in $Tokens ) 
-	    {     
-	        $Path+= $Seperator 
-	        $Path+= "DC=" 
-	        $Path+= $Token 
-	        $Seperator = "," 
-	    } 
-	    return $Path 
-	} 
-	#endregion
-	
-	#region Get-ComputerAdDescription
-	#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
-	function Get-ComputerAdDescription( $ComputerName ) 
-	{ 
-	    $Path = Get-AdDomainPath
-	    $Dom = "LDAP://" + $Path 
-	    $Root = New-Object DirectoryServices.DirectoryEntry $Dom  
-	     
-	    # Create a selector and start searching from the root 
-	    $Selector = New-Object DirectoryServices.DirectorySearcher 
-	    $Selector.SearchRoot = $Root  
-	    $Selector.Filter = "(objectclass=computer)"; 
-	 
-	    $AdObjects = $Selector.findall() | where {$_.properties.cn -match $ComputerName  } 
-	 
-	    if ( !$AdObject -is [System.DirectoryServices.SearchResult] ) { 
-	        return $Null 
-	    } 
-	 
-	    $Description = $AdObjects.Properties["description"] 
-	 
-	    return $Description 
-	} 
-	#endregion
-	
-	#region Show-MsgBox
-	<# 
-	            .SYNOPSIS  
-	            Shows a graphical message box, with various prompt types available. 
-	 
-	            .DESCRIPTION 
-	            Emulates the Visual Basic MsgBox function.  It takes four parameters, of which only the prompt is mandatory 
-	 
-	            .INPUTS 
-	            The parameters are:- 
-	             
-	            Prompt (mandatory):  
-	                Text string that you wish to display 
-	                 
-	            Title (optional): 
-	                The title that appears on the message box 
-	                 
-	            Icon (optional).  Available options are: 
-	                Information, Question, Critical, Exclamation (not case sensitive) 
-	                
-	            BoxType (optional). Available options are: 
-	                OKOnly, OkCancel, AbortRetryIgnore, YesNoCancel, YesNo, RetryCancel (not case sensitive) 
-	                 
-	            DefaultButton (optional). Available options are: 
-	                1, 2, 3 
-	 
-	            .OUTPUTS 
-	            Microsoft.VisualBasic.MsgBoxResult 
-	 
-	            .EXAMPLE 
-	            C:\PS> Show-MsgBox Hello 
-	            Shows a popup message with the text "Hello", and the default box, icon and defaultbutton settings. 
-	 
-	            .EXAMPLE 
-	            C:\PS> Show-MsgBox -Prompt "This is the prompt" -Title "This Is The Title" -Icon Critical -BoxType YesNo -DefaultButton 2 
-	            Shows a popup with the parameter as supplied. 
-	 
-	            .LINK 
-	            http://msdn.microsoft.com/en-us/library/microsoft.visualbasic.msgboxresult.aspx 
-	 
-	            .LINK 
-	            http://msdn.microsoft.com/en-us/library/microsoft.visualbasic.msgboxstyle.aspx 
-	            #> 
-	# By BigTeddy August 24, 2011 
-	# http://social.technet.microsoft.com/profile/bigteddy/. 
-	 
-	function Show-MsgBox 
-	{ 
-	 
-	 [CmdletBinding()] 
-	    param( 
-	    [Parameter(Position=0, Mandatory=$true)] [string]$Prompt, 
-	    [Parameter(Position=1, Mandatory=$false)] [string]$Title ="", 
-	    [Parameter(Position=2, Mandatory=$false)] [ValidateSet("Information", "Question", "Critical", "Exclamation")] [string]$Icon ="Information", 
-	    [Parameter(Position=3, Mandatory=$false)] [ValidateSet("OKOnly", "OKCancel", "AbortRetryIgnore", "YesNoCancel", "YesNo", "RetryCancel")] [string]$BoxType ="OkOnly", 
-	    [Parameter(Position=4, Mandatory=$false)] [ValidateSet(1,2,3)] [int]$DefaultButton = 1 
-	    ) 
-	[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.VisualBasic") | Out-Null 
-	switch ($Icon) { 
-	            "Question" {$vb_icon = [microsoft.visualbasic.msgboxstyle]::Question } 
-	            "Critical" {$vb_icon = [microsoft.visualbasic.msgboxstyle]::Critical} 
-	            "Exclamation" {$vb_icon = [microsoft.visualbasic.msgboxstyle]::Exclamation} 
-	            "Information" {$vb_icon = [microsoft.visualbasic.msgboxstyle]::Information}} 
-	switch ($BoxType) { 
-	            "OKOnly" {$vb_box = [microsoft.visualbasic.msgboxstyle]::OKOnly} 
-	            "OKCancel" {$vb_box = [microsoft.visualbasic.msgboxstyle]::OkCancel} 
-	            "AbortRetryIgnore" {$vb_box = [microsoft.visualbasic.msgboxstyle]::AbortRetryIgnore} 
-	            "YesNoCancel" {$vb_box = [microsoft.visualbasic.msgboxstyle]::YesNoCancel} 
-	            "YesNo" {$vb_box = [microsoft.visualbasic.msgboxstyle]::YesNo} 
-	            "RetryCancel" {$vb_box = [microsoft.visualbasic.msgboxstyle]::RetryCancel}} 
-	switch ($Defaultbutton) { 
-	            1 {$vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton1} 
-	            2 {$vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton2} 
-	            3 {$vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton3}} 
-	$popuptype = $vb_icon -bor $vb_box -bor $vb_defaultbutton 
-	$ans = [Microsoft.VisualBasic.Interaction]::MsgBox($prompt,$popuptype,$title) 
-	return $ans 
-	} #end
-	#endregion
-	
-	#region Run-RemoteCMD
-	#http://gallery.technet.microsoft.com/scriptcenter/56962f03-0243-4c83-8cdd-88c37898ccc4
-	function Run-RemoteCMD { 
-	    param( 
-	    [Parameter(Mandatory=$true,valuefrompipeline=$true)] 
-	    [string]$ComputerName,
+	)
+	# $OsInfo = Get-WmiObject Win32_OperatingSystem -Computer $Computer
+	# $Description  = $OsInfo
+	$Registry = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey( "LocalMachine", $ComputerName )
+	if ( $Registry -eq $Null ) {
+		return $Null
+	}
+	$RegPermCheck = [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree
+	$RegKeyRights = [System.Security.AccessControl.RegistryRights]::SetValue
+	$RegKey = $Registry.OpenSubKey( "SYSTEM\CurrentControlSet\Services\lanmanserver\parameters", $RegPermCheck, $RegKeyRights )
+	if ( $RegKey -eq $Null ) {
+		return $Null
+	}
+	$RegKey.SetValue("srvcomment", $Description )
+}
+#endregion
+
+#region Get-DnsDomain
+function Get-DnsDomain()
+{ #http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
+	# ---------------------------------------------------------
+	# Get the name of the domain this computer belongs to.
+	# ---------------------------------------------------------
+	if ( $Global:DnsDomain -eq $null ) {
+		$WmiInfo = Get-WmiObject "Win32_NTDomain" | Where-Object { $_.DnsForestName -ne $null }
+		$Global:DnsDomain = $WmiInfo.DnsForestName
+	}
+	return $Global:DnsDomain
+}
+#endregion
+
+#region Get-AdDomainPath
+function Get-AdDomainPath()
+{ #http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
+	$DnsDomain = Get-DnsDomain
+	$Tokens = $DnsDomain.Split(".")
+	$Seperator = ""
+	$Path = ""
+	foreach ( $Token in $Tokens ) {
+		$Path += $Seperator
+		$Path += "DC="
+		$Path += $Token
+		$Seperator = ","
+	}
+	return $Path
+}
+#endregion
+
+#region Get-ComputerAdDescription
+#http://gallery.technet.microsoft.com/5c5bb1f7-519b-43b3-9d3a-dce8b9390244
+function Get-ComputerAdDescription( $ComputerName ) {
+	$Path = Get-AdDomainPath
+	$Dom = "LDAP://" + $Path
+	$Root = New-Object DirectoryServices.DirectoryEntry $Dom
+
+	# Create a selector and start searching from the root
+	$Selector = New-Object DirectoryServices.DirectorySearcher
+	$Selector.SearchRoot = $Root
+	$Selector.Filter = "(objectclass=computer)";
+
+	$AdObjects = $Selector.findall() | Where-Object { $_.properties.cn -match $ComputerName }
+
+	if ( !$AdObject -is [System.DirectoryServices.SearchResult] ) {
+		return $Null
+	}
+
+	$Description = $AdObjects.Properties["description"]
+
+	return $Description
+}
+#endregion
+
+#region Show-MsgBox
+<#
+	            .SYNOPSIS
+	            Shows a graphical message box, with various prompt types available.
+
+	            .DESCRIPTION
+	            Emulates the Visual Basic MsgBox function.  It takes four parameters, of which only the prompt is mandatory
+
+	            .INPUTS
+	            The parameters are:-
+
+	            Prompt (mandatory):
+	                Text string that you wish to display
+
+	            Title (optional):
+	                The title that appears on the message box
+
+	            Icon (optional).  Available options are:
+	                Information, Question, Critical, Exclamation (not case sensitive)
+
+	            BoxType (optional). Available options are:
+	                OKOnly, OkCancel, AbortRetryIgnore, YesNoCancel, YesNo, RetryCancel (not case sensitive)
+
+	            DefaultButton (optional). Available options are:
+	                1, 2, 3
+
+	            .OUTPUTS
+	            Microsoft.VisualBasic.MsgBoxResult
+
+	            .EXAMPLE
+	            C:\PS> Show-MsgBox Hello
+	            Shows a popup message with the text "Hello", and the default box, icon and defaultbutton settings.
+
+	            .EXAMPLE
+	            C:\PS> Show-MsgBox -Prompt "This is the prompt" -Title "This Is The Title" -Icon Critical -BoxType YesNo -DefaultButton 2
+	            Shows a popup with the parameter as supplied.
+
+	            .LINK
+	            http://msdn.microsoft.com/en-us/library/microsoft.visualbasic.msgboxresult.aspx
+
+	            .LINK
+	            http://msdn.microsoft.com/en-us/library/microsoft.visualbasic.msgboxstyle.aspx
+	            #>
+# By BigTeddy August 24, 2011
+# http://social.technet.microsoft.com/profile/bigteddy/.
+
+function Show-MsgBox {
+
+	[CmdletBinding()]
+	param(
+		[Parameter(Position = 0, Mandatory = $true)] [string]$Prompt,
+		[Parameter(Position = 1, Mandatory = $false)] [string]$Title = "",
+		[Parameter(Position = 2, Mandatory = $false)] [ValidateSet("Information", "Question", "Critical", "Exclamation")] [string]$Icon = "Information",
+		[Parameter(Position = 3, Mandatory = $false)] [ValidateSet("OKOnly", "OKCancel", "AbortRetryIgnore", "YesNoCancel", "YesNo", "RetryCancel")] [string]$BoxType = "OkOnly",
+		[Parameter(Position = 4, Mandatory = $false)] [ValidateSet(1, 2, 3)] [int]$DefaultButton = 1
+	)
+	[System.Reflection.Assembly]::LoadWithPartialName("Microsoft.VisualBasic") | Out-Null
+	switch ($Icon) {
+		"Question" { $vb_icon = [microsoft.visualbasic.msgboxstyle]::Question }
+		"Critical" { $vb_icon = [microsoft.visualbasic.msgboxstyle]::Critical }
+		"Exclamation" { $vb_icon = [microsoft.visualbasic.msgboxstyle]::Exclamation }
+		"Information" { $vb_icon = [microsoft.visualbasic.msgboxstyle]::Information }
+ }
+	switch ($BoxType) {
+		"OKOnly" { $vb_box = [microsoft.visualbasic.msgboxstyle]::OKOnly }
+		"OKCancel" { $vb_box = [microsoft.visualbasic.msgboxstyle]::OkCancel }
+		"AbortRetryIgnore" { $vb_box = [microsoft.visualbasic.msgboxstyle]::AbortRetryIgnore }
+		"YesNoCancel" { $vb_box = [microsoft.visualbasic.msgboxstyle]::YesNoCancel }
+		"YesNo" { $vb_box = [microsoft.visualbasic.msgboxstyle]::YesNo }
+		"RetryCancel" { $vb_box = [microsoft.visualbasic.msgboxstyle]::RetryCancel }
+ }
+	switch ($Defaultbutton) {
+		1 { $vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton1 }
+		2 { $vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton2 }
+		3 { $vb_defaultbutton = [microsoft.visualbasic.msgboxstyle]::DefaultButton3 }
+ }
+	$popuptype = $vb_icon -bor $vb_box -bor $vb_defaultbutton
+	$ans = [Microsoft.VisualBasic.Interaction]::MsgBox($prompt, $popuptype, $title)
+	return $ans
+} #end
+#endregion
+
+#region Run-RemoteCMD
+#http://gallery.technet.microsoft.com/scriptcenter/56962f03-0243-4c83-8cdd-88c37898ccc4
+function Run-RemoteCMD {
+	param(
+		[Parameter(Mandatory = $true, valuefrompipeline = $true)]
+		[string]$ComputerName,
 		[string]$Command)
-	    begin { 
-	        
-	        [string]$cmd = "CMD.EXE /C " +$command 
-	                        } 
-	    process { 
-	        $newproc = Invoke-WmiMethod -class Win32_process -name Create -ArgumentList ($cmd) -ComputerName $ComputerName 
-	        if ($newproc.ReturnValue -eq 0 ) 
-	                { Write-Output " Command $($command) invoked Sucessfully on $($ComputerName)" } 
-	                # if command is sucessfully invoked it doesn't mean that it did what its supposed to do 
-	                #it means that the command only sucessfully ran on the cmd.exe of the server 
-	                #syntax errors can occur due to user input  
-	    } 
-	    End{Write-Output "Script ...END"}
+	begin {
+
+		[string]$cmd = "CMD.EXE /C " + $command
 	}
-	#endregion
-	
-	# Lee Holmes - http://www.leeholmes.com
-	
-	#region Test-PSRemoting
-	
-	function Test-PSRemoting 
-	{ 
-	    Param(
-	        [alias('dnsHostName')]
-	        [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true,ValueFromPipeline=$true)]
-	        [string]$ComputerName
-	    )
-	    Process
-	    {
-	        Write-Verbose " [Test-PSRemoting] :: Start Process"
-	        if($ComputerName -match "(.*)(\$)$")
-	        {
-	            $ComputerName = $ComputerName -replace "(.*)(\$)$",'$1'
-	        }
-	        
-	        try 
-	        { 
-	            
-	            $result = Invoke-Command -ComputerName $computername { 1 } -ErrorAction SilentlyContinue
-	            
-	            if($result -eq 1 )
-	            {
-	                return $True
-	            }
-	            else
-	            {
-	                return $False
-	            }
-	        } 
-	        catch 
-	        { 
-	            return $False 
-	        } 
-	    }
-	} 
-	
-	#endregion
-	
-	# Sapien Forum
-	
-	#region Show-InputBox
-	#http://www.sapien.com/forums/scriptinganswers/forum_posts.asp?TID=2890
-	#$c=Show-Inputbox -message "Enter a computername" -title "Computername" -default $env:Computername
-	#
-	#if ($c.Trim()) {
-	#  Get-WmiObject win32_computersystem -computer $c
-	#  }
-	Function Show-InputBox {
-	 Param([string]$message=$(Throw "You must enter a prompt message"),
-	       [string]$title="Input",
-	       [string]$default
-	       )
-	       
-	 [reflection.assembly]::loadwithpartialname("microsoft.visualbasic") | Out-Null
-	 [microsoft.visualbasic.interaction]::InputBox($message,$title,$default)
-	 
+	process {
+		$newproc = Invoke-WmiMethod -Class Win32_process -Name Create -ArgumentList ($cmd) -ComputerName $ComputerName
+		if ($newproc.ReturnValue -eq 0 )
+		{ Write-Output " Command $($command) invoked Sucessfully on $($ComputerName)" }
+		# if command is sucessfully invoked it doesn't mean that it did what its supposed to do
+		#it means that the command only sucessfully ran on the cmd.exe of the server
+		#syntax errors can occur due to user input
 	}
-	#endregion
-	
-	
+	End { Write-Output "Script ...END" }
+}
+#endregion
+
+# Lee Holmes - http://www.leeholmes.com
+
+#region Test-PSRemoting
+
+function Test-PSRemoting {
+	Param(
+		[alias('dnsHostName')]
+		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $true)]
+		[string]$ComputerName
+	)
+	Process {
+		Write-Verbose " [Test-PSRemoting] :: Start Process"
+		if ($ComputerName -match "(.*)(\$)$") {
+			$ComputerName = $ComputerName -replace "(.*)(\$)$", '$1'
+		}
+
+		try {
+
+			$result = Invoke-Command -ComputerName $computername { 1 } -ErrorAction SilentlyContinue
+
+			if ($result -eq 1 ) {
+				return $True
+			}
+			else {
+				return $False
+			}
+		}
+		catch {
+			return $False
+		}
+	}
+}
+
+#endregion
+
+# Sapien Forum
+
+#region Show-InputBox
+#http://www.sapien.com/forums/scriptinganswers/forum_posts.asp?TID=2890
+#$c=Show-Inputbox -message "Enter a computername" -title "Computername" -default $env:Computername
+#
+#if ($c.Trim()) {
+#  Get-WmiObject win32_computersystem -computer $c
+#  }
+Function Show-InputBox {
+	Param([string]$message = $(Throw "You must enter a prompt message"),
+		[string]$title = "Input",
+		[string]$default
+	)
+
+	[reflection.assembly]::loadwithpartialname("microsoft.visualbasic") | Out-Null
+	[microsoft.visualbasic.interaction]::InputBox($message, $title, $default)
+
+}
+#endregion
+
 #endregion
 
 #region Call-About_pff
-function Call-About_pff
-{
+function Call-About_pff {
 	#----------------------------------------------
 	#region Import the Assemblies
 	#----------------------------------------------
@@ -5347,61 +4991,59 @@ function Call-About_pff
 	#----------------------------------------------
 	# User Generated Script
 	#----------------------------------------------
-	
+
 	function OnApplicationLoad {
 		#Note: This function runs before the form is created
 		#Note: To get the script directory in the Packager use: Split-Path $hostinvocation.MyCommand.path
 		#Note: To get the console output in the Packager (Windows Mode) use: $ConsoleOutput (Type: System.Collections.ArrayList)
 		#Important: Form controls cannot be accessed in this function
-		#TODO: Add snapins and custom code to validate the application load	
+		#TODO: Add snapins and custom code to validate the application load
 		return $true #return true for success or false for failure
 	}
-	
+
 	function OnApplicationExit {
 		#Note: This function runs after the form is closed
 		#TODO: Add custom code to clean up and unload snapins when the application exits
-		
+
 		$script:ExitCode = 0 #Set the exit code for the Packager
 	}
-	
-	$FormEvent_Load={
+
+	$FormEvent_Load = {
 		#TODO: Initialize Form Controls here
 		$linklabel_Blog.text = $AuthorBlogName
 		$linklabel_Email.Text = $AuthorEmail
 	}
-	
-	$linklabel_AuthorBlog_LinkClicked=[System.Windows.Forms.LinkLabelLinkClickedEventHandler]{
+
+	$linklabel_AuthorBlog_LinkClicked = [System.Windows.Forms.LinkLabelLinkClickedEventHandler] {
 		[System.Diagnostics.Process]::Start("$AuthorBlogURL")
 	}
-	
-	$linklabel_AuthorEmail_LinkClicked=[System.Windows.Forms.LinkLabelLinkClickedEventHandler]{
+
+	$linklabel_AuthorEmail_LinkClicked = [System.Windows.Forms.LinkLabelLinkClickedEventHandler] {
 		[System.Diagnostics.Process]::Start("mailto:$authoremail?subject=$AuthorBlogName")
 	}
-	
-	$linklabel_Twitter_LinkClicked=[System.Windows.Forms.LinkLabelLinkClickedEventHandler]{
+
+	$linklabel_Twitter_LinkClicked = [System.Windows.Forms.LinkLabelLinkClickedEventHandler] {
 		[System.Diagnostics.Process]::Start("$global:AuthorTwitterURL")
 	}	# --End User Generated Script--
 	#----------------------------------------------
 	#region Generated Events
 	#----------------------------------------------
-	
-	$Form_StateCorrection_Load=
+
+	$Form_StateCorrection_Load =
 	{
 		#Correct the initial state of the form to prevent the .Net maximized form issue
 		$form_Author.WindowState = $InitialFormWindowState
 	}
-	
-	$Form_StoreValues_Closing=
+
+	$Form_StoreValues_Closing =
 	{
 		#Store the control values
 	}
 
-	
-	$Form_Cleanup_FormClosed=
+	$Form_Cleanup_FormClosed =
 	{
 		#Remove all event handlers from the controls
-		try
-		{
+		try {
 			$linklabel_Twitter.remove_LinkClicked($linklabel_Twitter_LinkClicked)
 			$linklabel_Blog.remove_LinkClicked($linklabel_AuthorBlog_LinkClicked)
 			$linklabel_Email.remove_LinkClicked($linklabel_AuthorEmail_LinkClicked)
@@ -5568,8 +5210,7 @@ The GUI/WinForm that was created using Sapien Powershell Studio 2012."
 #endregion
 
 #region Call-MainForm_pff
-function Call-MainForm_pff
-{
+function Call-MainForm_pff {
 	#----------------------------------------------
 	#region Import the Assemblies
 	#----------------------------------------------
@@ -5807,348 +5448,353 @@ function Call-MainForm_pff
 	#################################
 	######### CONFIGURATION #########
 	#################################
-	
+
 	# LazyAdminKit information
-	$ApplicationName		= "LazyWinAdmin"
-	$ApplicationVersion		= "0.4"
+	$ApplicationName = "LazyWinAdmin"
+	$ApplicationVersion = "0.4"
 	$ApplicationLastUpdate	= "2012/06/14"
-	
+
 	# Author Information
-	$AuthorName			= "Francois-Xavier Cat"
-	$AuthorEmail 		= "info@lazywinadmin.com"
-	$AuthorBlogName 	= "LazyWinAdmin.com"
-	$AuthorBlogURL 		= "http://www.lazywinadmin.com"
-	$AuthorTwitter 		= "@LazyWinAdm"
+	$AuthorName = "Francois-Xavier Cat"
+	$AuthorEmail = "info@lazywinadmin.com"
+	$AuthorBlogName = "LazyWinAdmin.com"
+	$AuthorBlogURL = "http://www.lazywinadmin.com"
+	$AuthorTwitter = "@LazyWinAdm"
 	$AuthorTwitterURL	= "http://twitter.com/LazyWinAdm"
-	
+
 	# Text to show in the Status Bar when the form load
 	$StatusBarStartUp	= "$AuthorName - $AuthorEmail"
-	
+
 	# Title of the MainForm
-	$domain				= $env:userdomain.ToUpper()
-	$MainFormTitle 		= "$ApplicationName $ApplicationVersion - Last Update: $ApplicationLastUpdate - $domain\$env:username"
-	
+	$domain = $env:userdomain.ToUpper()
+	$MainFormTitle = "$ApplicationName $ApplicationVersion - Last Update: $ApplicationLastUpdate - $domain\$env:username"
+
 	# Default Error Action
-	$ErrorActionPreference 	= "SilentlyContinue"
-	
+	$ErrorActionPreference = "SilentlyContinue"
+
 	# Script Paths
-	$ScriptPath 	= Split-Path $hostinvocation.MyCommand.path
-	$ToolsFolder 	= $ScriptPath + "tools"
-	$ScriptsFolder 	= $ScriptPath + "scripts"
-	$SavePath 		= $env:userprofile + "\desktop"
-	
+	$ScriptPath = Split-Path $hostinvocation.MyCommand.path
+	$ToolsFolder = $ScriptPath + "tools"
+	$ScriptsFolder = $ScriptPath + "scripts"
+	$SavePath = $env:userprofile + "\desktop"
+
 	#reset Error
-	$error = ""
-	
+	$Error.Clear()
+
 	# Computers List Source
 	#$ComputersList_File = "$pwd\computers.txt"
 	Set-Location $ScriptPath
 	$ComputersList_File = $ScriptPath + "computers.txt"
 	$ComputersList	= Get-Content $ComputersList_File
-	
+
 	# RichTextBox OUTPUT form
 	#  Output Default Parameters
-	$richtextbox_output_DefaultFontFamily="Lucida Console"
-	$richtextbox_output_DefaultFontSize="8"
-	$richtextbox_output_DefaultFont = New-Object System.Drawing.Font ($richtextbox_output_DefaultFontFamily,$richtextbox_output_DefaultFontSize)
+	$richtextbox_output_DefaultFontFamily = "Lucida Console"
+	$richtextbox_output_DefaultFontSize = "8"
+	$richtextbox_output_DefaultFont = New-Object System.Drawing.Font ($richtextbox_output_DefaultFontFamily, $richtextbox_output_DefaultFontSize)
 	#$global:richtextbox_output_DefaultFont.Bold = $false
-	
+
 	#  Title Default Parameters
-	$richtextbox_output_TitleFontFamily="Lucida Console"
-	$richtextbox_output_TitleFontSize="10"
-	$richtextbox_output_TitleFont = New-Object System.Drawing.Font ($richtextbox_output_TitleFontFamily,$richtextbox_output_TitleFontSize)
+	$richtextbox_output_TitleFontFamily = "Lucida Console"
+	$richtextbox_output_TitleFontSize = "10"
+	$richtextbox_output_TitleFont = New-Object System.Drawing.Font ($richtextbox_output_TitleFontFamily, $richtextbox_output_TitleFontSize)
 	#$global:richtextbox_output_TitleFont.Bold = $true
-	
+
 	# RichTextBox LOGS form
 	#  Message to show when the form load
-	$RichTexBoxLogsDefaultMessage="Welcome on $ApplicationName $LAKVersion - Visit my Blog: $AuthorBlogURL"
-	
+	$RichTexBoxLogsDefaultMessage = "Welcome on $ApplicationName $LAKVersion - Visit my Blog: $AuthorBlogURL"
+
 	# Current Operating System Information
-	$current_OS 			= Get-WmiObject Win32_OperatingSystem
-	$current_OS_caption 	= $current_OS.caption
-	
+	$current_OS = Get-WmiObject Win32_OperatingSystem
+	$current_OS_caption = $current_OS.caption
+
 	# Background Jobs
 	$JobTrackerList = New-Object System.Collections.ArrayList
-	
+
 	###############
-	$OnLoadFormEvent={
+	$OnLoadFormEvent = {
 		# Set the status bar name
 		$statusbar1.Text = $StatusBarStartUp
-		
-		
+
 		$form_MainForm.Text = $MainFormTitle
 		$textbox_computername.Text = $env:COMPUTERNAME
 		Add-Logs -text $RichTexBoxLogsDefaultMessage
-		
+
 		# Load the Computers list from $ComputersList
-		if (Test-Path $ComputersList_File){
+		if (Test-Path $ComputersList_File) {
 			Add-logs -text "Computers List loaded - $($ComputersList.Count) Items - File: $ComputersList_File" -ErrorAction 'SilentlyContinue'
 			$textbox_computername.AutoCompleteCustomSource.AddRange($ComputersList)
-			}#end if (Test-Path $ComputersList
-			else {
-				Add-Logs -text "No Computers List found at the following location: $ComputersList_File"  -ErrorAction 'SilentlyContinue'
-			}
-		
+		}#end if (Test-Path $ComputersList
+		else {
+			Add-Logs -text "No Computers List found at the following location: $ComputersList_File" -ErrorAction 'SilentlyContinue'
+		}
+
 		# Verify External Tools are presents
-		
+
 		# PSExec.exe
-		if(Test-Path "$ToolsFolder\psexec.exe" -ErrorAction 'SilentlyContinue'){
+		if (Test-Path "$ToolsFolder\psexec.exe" -ErrorAction 'SilentlyContinue') {
 			$button_psexec.ForeColor = 'green'
-			Add-Logs -text "External Tools check - PsExec.exe found" -ErrorAction 'SilentlyContinue'}
-		else {$button_psexec.ForeColor = 'Red';$button_psexec.enabled = $false;Add-Logs -text "External Tools check - PsExec.exe not found - Button Disabled"  -ErrorAction 'SilentlyContinue'}
-		
+			Add-Logs -text "External Tools check - PsExec.exe found" -ErrorAction 'SilentlyContinue'
+  }
+		else { $button_psexec.ForeColor = 'Red'; $button_psexec.enabled = $false; Add-Logs -text "External Tools check - PsExec.exe not found - Button Disabled" -ErrorAction 'SilentlyContinue' }
+
 		# PAExec.exe
-		if(Test-Path "$ToolsFolder\paexec.exe" -ErrorAction 'SilentlyContinue' ){
+		if (Test-Path "$ToolsFolder\paexec.exe" -ErrorAction 'SilentlyContinue' ) {
 			$button_PAExec.ForeColor = 'Green'
-			Add-Logs -text "External Tools check - PAExec.exe found" -ErrorAction 'SilentlyContinue'}
-		else {$button_PAExec.ForeColor = 'Red';$button_paexec.enabled = $false;Add-Logs -text "External Tools check - PsExec.exe not found - Button Disabled"  -ErrorAction 'SilentlyContinue'}
-		
+			Add-Logs -text "External Tools check - PAExec.exe found" -ErrorAction 'SilentlyContinue'
+  }
+		else { $button_PAExec.ForeColor = 'Red'; $button_paexec.enabled = $false; Add-Logs -text "External Tools check - PsExec.exe not found - Button Disabled" -ErrorAction 'SilentlyContinue' }
+
 		# ADExplorer.exe
-		if(Test-Path "$ToolsFolder\adexplorer.exe" -ErrorAction 'SilentlyContinue'){
+		if (Test-Path "$ToolsFolder\adexplorer.exe" -ErrorAction 'SilentlyContinue') {
 			$ToolStripMenuItem_adExplorer.ForeColor = 'Green'
-			Add-Logs -text "External Tools check - ADExplorer.exe found" -ErrorAction 'SilentlyContinue'}
-		else {$ToolStripMenuItem_adExplorer.enabled = $false;Add-Logs -text "External Tools check - ADExplorer.exe not found - Button Disabled"  -ErrorAction 'SilentlyContinue'}
-		
+			Add-Logs -text "External Tools check - ADExplorer.exe found" -ErrorAction 'SilentlyContinue'
+  }
+		else { $ToolStripMenuItem_adExplorer.enabled = $false; Add-Logs -text "External Tools check - ADExplorer.exe not found - Button Disabled" -ErrorAction 'SilentlyContinue' }
+
 		# MSRA.exe (Remote Assistance)
-		if(Test-Path "$env:systemroot/system32/msra.exe" -ErrorAction 'SilentlyContinue'){
-			Add-Logs -text "External Tools check - MSRA.exe found" -ErrorAction 'SilentlyContinue'}
-		else {$buttonRemoteAssistance.enabled = $false;Add-Logs -text "External Tools check - MSRA.exe not found (Remote Assistance) - Button Disabled" -ErrorAction 'SilentlyContinue'}
-		
+		if (Test-Path "$env:systemroot/system32/msra.exe" -ErrorAction 'SilentlyContinue') {
+			Add-Logs -text "External Tools check - MSRA.exe found" -ErrorAction 'SilentlyContinue'
+  }
+		else { $buttonRemoteAssistance.enabled = $false; Add-Logs -text "External Tools check - MSRA.exe not found (Remote Assistance) - Button Disabled" -ErrorAction 'SilentlyContinue' }
+
 		# Telnet.exe
-		if(Test-Path "$env:systemroot/system32/telnet.exe" -ErrorAction 'SilentlyContinue'){
-			Add-Logs -text "External Tools check - Telnet.exe found" -ErrorAction 'SilentlyContinue'}
-		else {$button_Telnet.enabled = $false;Add-Logs -text "External Tools check - Telnet.exe not found - Button Disabled" -ErrorAction 'SilentlyContinue'}
-		
+		if (Test-Path "$env:systemroot/system32/telnet.exe" -ErrorAction 'SilentlyContinue') {
+			Add-Logs -text "External Tools check - Telnet.exe found" -ErrorAction 'SilentlyContinue'
+  }
+		else { $button_Telnet.enabled = $false; Add-Logs -text "External Tools check - Telnet.exe not found - Button Disabled" -ErrorAction 'SilentlyContinue' }
+
 		# SystemInfo.exe
-		if(Test-Path "$env:systemroot/system32/systeminfo.exe" -ErrorAction 'SilentlyContinue'){
-			Add-Logs -text "External Tools check - Systeminfo.exe found"}
-		else {$button_SystemInfoexe.enabled = $false;Add-Logs -text "External Tools check - Systeminfo.exe not found - Button Disabled"}
-		
+		if (Test-Path "$env:systemroot/system32/systeminfo.exe" -ErrorAction 'SilentlyContinue') {
+			Add-Logs -text "External Tools check - Systeminfo.exe found"
+  }
+		else { $button_SystemInfoexe.enabled = $false; Add-Logs -text "External Tools check - Systeminfo.exe not found - Button Disabled" }
+
 		# MSInfo32.exe
-		if(Test-Path "$env:programfiles\Common Files\Microsoft Shared\MSInfo\msinfo32.exe" -ErrorAction 'SilentlyContinue'){
-			Add-Logs -text "External Tools check - msinfo32.exe found"}
-		else {$button_MsInfo32.enabled = $false;Add-Logs -text "External Tools check - msinfo32.exe not found - Button Disabled"}
-		
+		if (Test-Path "$env:programfiles\Common Files\Microsoft Shared\MSInfo\msinfo32.exe" -ErrorAction 'SilentlyContinue') {
+			Add-Logs -text "External Tools check - msinfo32.exe found"
+  }
+		else { $button_MsInfo32.enabled = $false; Add-Logs -text "External Tools check - msinfo32.exe not found - Button Disabled" }
+
 		# DriverQuery.exe
-			if(Test-Path "$env:systemroot/system32/driverquery.exe" -ErrorAction 'SilentlyContinue'){
-			Add-Logs -text "External Tools check - Driverquery.exe found"}
-		else {$button_DriverQuery.enabled = $false;Add-Logs -text "External Tools check - Driverquery.exe not found - Button Disabled"}
-		
+		if (Test-Path "$env:systemroot/system32/driverquery.exe" -ErrorAction 'SilentlyContinue') {
+			Add-Logs -text "External Tools check - Driverquery.exe found"
+		}
+		else { $button_DriverQuery.enabled = $false; Add-Logs -text "External Tools check - Driverquery.exe not found - Button Disabled" }
+
 		# SCRIPTS
-		
+
 		# WMIExplore.ps1 - http://thepowershellguy.com
-		if(Test-Path "$ScriptsFolder\WMIExplorer.ps1" -ErrorAction 'SilentlyContinue'){
+		if (Test-Path "$ScriptsFolder\WMIExplorer.ps1" -ErrorAction 'SilentlyContinue') {
 			$ToolStripMenuItem_WMIExplorer.ForeColor = 'green'
-			Add-Logs -text "External Script check - WMIExplorer.ps1 found"}
-		else {	$ToolStripMenuItem_WMIExplorer.ForeColor = 'Red';$ToolStripMenuItem_WMIExplorer.enabled = $false
-				Add-Logs -text "External Script check - WMIExplorer.ps1 not found - Button Disabled"}
-		
+			Add-Logs -text "External Script check - WMIExplorer.ps1 found"
+  }
+		else {
+			$ToolStripMenuItem_WMIExplorer.ForeColor = 'Red'; $ToolStripMenuItem_WMIExplorer.enabled = $false
+			Add-Logs -text "External Script check - WMIExplorer.ps1 not found - Button Disabled"
+  }
+
 		# SYDI-Server.vbs - http://sydiproject.com/
-		if(Test-Path "$ScriptsFolder\sydi-server.vbs" -ErrorAction 'SilentlyContinue'){
+		if (Test-Path "$ScriptsFolder\sydi-server.vbs" -ErrorAction 'SilentlyContinue') {
 			$button_SYDIGo.ForeColor = 'green'
-			Add-Logs -text "External Script check - Sydi-Server.vbs found"}
+			Add-Logs -text "External Script check - Sydi-Server.vbs found"
+  }
 		else {
 			$button_SYDIGo.enabled = $false
 			$combobox_sydi_format.Enabled = $false
 			$textbox_sydi_arguments.Enabled = $false
-			Add-Logs -text "External Script check - Sydi-Server.vbs not found - Button Disabled"}
+			Add-Logs -text "External Script check - Sydi-Server.vbs not found - Button Disabled"
+  }
 	}
-	
-	
+
 	# TIMERS
-	$timerCheckJob_Tick={
+	$timerCheckJob_Tick = {
 		Update-JobTracker
 	}
-	
-	$timerCheckJob_Tick2={
+
+	$timerCheckJob_Tick2 = {
 		#Check if the process stopped
-		if($timerCheckJob.Tag -ne $null)
-		{		
-			if($timerCheckJob.Tag.State -ne 'Running')
-			{
+		if ($timerCheckJob.Tag -ne $null) {
+			if ($timerCheckJob.Tag.State -ne 'Running') {
 				#Stop the Timer
 				$buttonStart.ImageIndex = -1
-				$buttonStart.Enabled = $true	
+				$buttonStart.Enabled = $true
 				$buttonStart.Visible = $true
 				$timerCheckJob.Tag = $null
 				$timerCheckJob.Stop()
 			}
-			else
-			{
-				if($buttonStart.ImageIndex -lt $buttonStart.ImageList.Images.Count - 1)
-				{
+			else {
+				if ($buttonStart.ImageIndex -lt $buttonStart.ImageList.Images.Count - 1) {
 					$buttonStart.ImageIndex += 1
 				}
-				else
-				{
-					$buttonStart.ImageIndex = 0		
+				else {
+					$buttonStart.ImageIndex = 0
 				}
 			}
 		}
 	}
-	
-	
-	
-	
-	$ToolStripMenuItem_CommandPrompt_Click={Start-Process cmd.exe}
-	$ToolStripMenuItem_Notepad_Click={Start-Process notepad.exe}
-	$ToolStripMenuItem_Powershell_Click={start-process powershell.exe -verb runas}
-	$ToolStripMenuItem_compmgmt_Click={compmgmt.msc}
-	$ToolStripMenuItem_taskManager_Click={Taskmgr}
-	$ToolStripMenuItem_services_Click={services.msc}
-	$ToolStripMenuItem_regedit_Click={regedit}
-	$ToolStripMenuItem_mmc_Click={mmc}
-	$ToolStripMenuItem_shutdownGui_Click={Start-Process shutdown.exe -ArgumentList /i}
-	
-	$button_ping_Click={
+
+	$ToolStripMenuItem_CommandPrompt_Click = { Start-Process cmd.exe }
+	$ToolStripMenuItem_Notepad_Click = { Start-Process notepad.exe }
+	$ToolStripMenuItem_Powershell_Click = { Start-Process powershell.exe -Verb runas }
+	$ToolStripMenuItem_compmgmt_Click = { compmgmt.msc }
+	$ToolStripMenuItem_taskManager_Click = { Taskmgr }
+	$ToolStripMenuItem_services_Click = { services.msc }
+	$ToolStripMenuItem_regedit_Click = { regedit }
+	$ToolStripMenuItem_mmc_Click = { mmc }
+	$ToolStripMenuItem_shutdownGui_Click = { Start-Process shutdown.exe -ArgumentList /i }
+
+	$button_ping_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Test-Connection"
 		$button_ping.Enabled = $False
-		start-process ping -ArgumentList $($textbox_computername.Text),-t;
+		Start-Process ping -ArgumentList $($textbox_computername.Text), -t;
 		#$result = Test-Connection -ComputerName $ComputerName -Count 1
 		#Add-RichTextBox	 $result
 		$button_ping.Enabled = $true
 	}
-	
-	$button_remot_Click={
+
+	$button_remot_Click = {
 		Get-ComputerTxtBox
 		add-logs -text "$ComputerName - Remote Desktop Connection"
-		$port=":3389"
+		$port = ":3389"
 		$command = "mstsc"
 		$argument = "/v:$computername$port /admin"
 		Start-Process $command $argument
 	}
-	
-	$ToolStripMenuItem_registeredSnappins_Click={
+
+	$ToolStripMenuItem_registeredSnappins_Click = {
 		add-logs -text "Localhost - Registered Snappin"
-		$snappins = Get-PSSnapin -Registered |Out-String
-		if ($snappins -eq ""){Add-RichTextBox "No Powershell Snappin registered"}
+		$snappins = Get-PSSnapin -Registered | Out-String
+		if ($snappins -eq "") { Add-RichTextBox "No Powershell Snappin registered" }
 		$richtextbox_output.SelectionBackColor = [System.Drawing.Color]::black
 		$richtextbox_output.SelectionColor = [System.Drawing.Color]::Red
 		Add-RichTextBox $snappins
 	}
-	
-	$button_outputClear_Click={Clear-RichTextBox}
-	$ToolStripMenuItem_AboutInfo_Click={Call-About_pff}
-	
-	$button_mmcCompmgmt_Click={
-		
+
+	$button_outputClear_Click = { Clear-RichTextBox }
+	$ToolStripMenuItem_AboutInfo_Click = { Call-About_pff }
+
+	$button_mmcCompmgmt_Click = {
+
 		Get-ComputerTxtBox
 		#disable the button to avoid multiple click
 		$button_mmcCompmgmt.Enabled = $false
 		if (($ComputerName -like "localhost") -or ($ComputerName -like ".") -or ($ComputerName -like "127.0.0.1") -or ($ComputerName -like "$env:computername")) {
 			Add-logs -text "Localhost - Computer Management MMC (compmgmt.msc)"
-			$command="compmgmt.msc"
-			Start-Process $command 
-			}
+			$command = "compmgmt.msc"
+			Start-Process $command
+		}
 		else {
 			Add-logs -text "$ComputerName - Computer Management MMC (compmgmt.msc /computer:$Computername)"
-			$command="compmgmt.msc"
+			$command = "compmgmt.msc"
 			$arguments = "/computer:$computername"
-			Start-Process $command $arguments}
+			Start-Process $command $arguments
+  }
 		#Enable the button
 		$button_mmcCompmgmt.Enabled = $true
 	}
-	
-	$ToolStripMenuItem_RemoteDesktopConnection_Click={Start-Process mstsc}
-	$ToolStripMenuItem_InternetExplorer_Click={Start-Process iexplore}
-	$button_Shares_Click={
+
+	$ToolStripMenuItem_RemoteDesktopConnection_Click = { Start-Process mstsc }
+	$ToolStripMenuItem_InternetExplorer_Click = { Start-Process iexplore }
+	$button_Shares_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Shares list"
-		$SharesList = Get-WmiObject win32_share -computer $ComputerName|Sort-Object name|Format-Table -AutoSize| Out-String -Width $richtextbox_output.Width
+		$SharesList = Get-WmiObject win32_share -computer $ComputerName | Sort-Object name | Format-Table -AutoSize | Out-String -Width $richtextbox_output.Width
 		Add-RichTextBox -text $SharesList
-		}
-	
-	$button_formExit_Click={
-		$ExitConfirmation = Show-MsgBox -Prompt "Do you really want to Exit ?" -Title "$ApplicationName $ApplicationVersion - Exit" -BoxType YesNo
-		if ($ExitConfirmation -eq "YES"){$form_MainForm.Close()}
 	}
-	
-	$button_mmcServices_Click={
+
+	$button_formExit_Click = {
+		$ExitConfirmation = Show-MsgBox -Prompt "Do you really want to Exit ?" -Title "$ApplicationName $ApplicationVersion - Exit" -BoxType YesNo
+		if ($ExitConfirmation -eq "YES") { $form_MainForm.Close() }
+	}
+
+	$button_mmcServices_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Services MMC (services.msc /computer:$ComputerName)"
 		$command = "services.msc"
 		$arguments = "/computer:$computername"
-		Start-Process $command $arguments 
+		Start-Process $command $arguments
 	}
-	
-	$button_servicesRunning_Click={
+
+	$button_servicesRunning_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Services - Status: Running"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Services_running = Get-Service -ComputerName $ComputerName| Where-Object { $_.Status -eq "Running" }|Format-Table -AutoSize |Out-String
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Services_running = Get-Service -ComputerName $ComputerName | Where-Object { $_.Status -eq "Running" } | Format-Table -AutoSize | Out-String
 		Add-RichTextBox -text $Services_running
 	}
-	
-	$button_process100MB_Click={
+
+	$button_process100MB_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Processes >100MB"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
 		$owners = @{}
-		Get-WmiObject win32_process -ComputerName $ComputerName |% {$owners[$_.handle] = $_.getowner().user}
-		$Processes_Over100MB = Get-Process -ComputerName $ComputerName| Where-Object { $_.WorkingSet -gt 100mb }|Select-Object Handles,NPM,PM,WS,VM,CPU,ID,ProcessName,@{l="Owner";e={$owners[$_.id.tostring()]}}|sort ws|ft -AutoSize|Out-String
+		Get-WmiObject win32_process -ComputerName $ComputerName | ForEach-Object { $owners[$_.handle] = $_.getowner().user }
+		$Processes_Over100MB = Get-Process -ComputerName $ComputerName | Where-Object { $_.WorkingSet -gt 100mb } | Select-Object Handles, NPM, PM, WS, VM, CPU, ID, ProcessName, @{l = "Owner"; e = { $owners[$_.id.tostring()] } } | Sort-Object ws | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $Processes_Over100MB
 	}
-	
-	$button_mmcEvents_Click={
+
+	$button_mmcEvents_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Event Viewer MMC (eventvwr $Computername)"
-		$command="eventvwr"
+		$command = "eventvwr"
 		$arguments = "$ComputerName"
 		Start-Process $command $arguments
 	}
-	
-	$button_EventsLast20_Click={
+
+	$button_EventsLast20_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - EventLog - Last 20"
-		if ($ComputerName -like "localhost"){
-			$Events_Last20Sytem = Get-EventLog -Newest 20 | Select-Object Index,EventID,Source,Message,MachineName,UserName,TimeGenerated,TimeWritten |Format-List|Out-String
-		Add-RichTextBox $Events_Last20Sytem
+		if ($ComputerName -like "localhost") {
+			$Events_Last20Sytem = Get-EventLog -Newest 20 | Select-Object Index, EventID, Source, Message, MachineName, UserName, TimeGenerated, TimeWritten | Format-List | Out-String
+			Add-RichTextBox $Events_Last20Sytem
 		}
 		else {
-		$Events_Last20Sytem = Get-EventLog -Newest 20 -ComputerName $ComputerName | Select-Object Index,EventID,Source,Message,MachineName,UserName,TimeGenerated,TimeWritten |Format-List|Out-String
-		Add-RichTextBox $Events_Last20Sytem}
-		
+			$Events_Last20Sytem = Get-EventLog -Newest 20 -ComputerName $ComputerName | Select-Object Index, EventID, Source, Message, MachineName, UserName, TimeGenerated, TimeWritten | Format-List | Out-String
+			Add-RichTextBox $Events_Last20Sytem
+  }
+
 	}
-	
-	
-	
-	$button_EventsSearch_Click={
+
+	$button_EventsSearch_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - EventLog - Search"
-		if ($ComputerName -like "localhost"){$SearchEventText =  Show-Inputbox -message "Enter the text to search" -title "$ComputerName - Search in events" -default "error"
-			if ($SearchEventText -ne ""){
-				$SearchEvent = Get-EventLog | Where-Object { $_.Message -match "$SearchEventText" }|fl * |Out-String
+		if ($ComputerName -like "localhost") {
+			$SearchEventText = Show-Inputbox -message "Enter the text to search" -title "$ComputerName - Search in events" -default "error"
+			if ($SearchEventText -ne "") {
+				$SearchEvent = Get-EventLog | Where-Object { $_.Message -match "$SearchEventText" } | Format-List * | Out-String
 				Add-RichTextBox $SearchEvent
 			}
 		}
-		else {$SearchEventText =  Show-Inputbox -message "Enter the text to search" -title "$ComputerName - Search in events" -default "error"
-			if ($SearchEventText -ne ""){
-				$SearchEvent = Get-EventLog -ComputerName $ComputerName| Where-Object { $_.Message -match "$SearchEventText" }|fl|Out-String
+		else {
+			$SearchEventText = Show-Inputbox -message "Enter the text to search" -title "$ComputerName - Search in events" -default "error"
+			if ($SearchEventText -ne "") {
+				$SearchEvent = Get-EventLog -ComputerName $ComputerName | Where-Object { $_.Message -match "$SearchEventText" } | Format-List | Out-String
 				Add-RichTextBox $SearchEvent
 			}
 		}
 	}
-	
-	$button_servicesAutomatic_Click={
+
+	$button_servicesAutomatic_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Services - StartMode:Automatic"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "startmode='auto'" |Select-Object DisplayName,Name,ProcessID,StartMode,State|Format-Table -AutoSize|out-string
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "startmode='auto'" | Select-Object DisplayName, Name, ProcessID, StartMode, State | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $Services_StartModeAuto
 	}
-	
-	$button_servicesQuery_Click={
-		#Button Types 
+
+	$button_servicesQuery_Click = {
+		#Button Types
 		#
 		#$a = new-object -comobject wscript.shell
 		#$intAnswer = $a.popup("Do you want to continue ?",0,"Shutdown",4)
 		#if ($intAnswer -eq 6){do something}
-		#Value  Description  
+		#Value  Description
 		#0 Show OK button.
 		#1 Show OK and Cancel buttons.
 		#2 Show Abort, Retry, and Ignore buttons.
@@ -6157,22 +5803,22 @@ function Call-MainForm_pff
 		#5 Show Retry and Cancel buttons.
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
-		$a = new-object -comobject wscript.shell
+		$a = New-Object -ComObject wscript.shell
 		Add-Logs "$COMPUTERNAME - Query Service"
 		#$Service_query = Read-Host "Enter the Service Name to Query `n"
 		$Service_query = $textbox_servicesAction.text
-		$intAnswer = $a.popup("Do you want to continue ?",0,"$ComputerName - Query Service: $Service_query",4)
+		$intAnswer = $a.popup("Do you want to continue ?", 0, "$ComputerName - Query Service: $Service_query", 4)
 		if (($ComputerName -like "localhost") -and ($intAnswer -eq 6)) {
 			Add-Logs "$COMPUTERNAME - Checking Service $Service_query ..."
-			$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'" |Out-String
+			$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 			Add-Logs "$COMPUTERNAME - Command Sent! Service $Service_query"
 			Add-RichTextBox $Service_query_return
 			Add-Logs -Text "$ComputerName - Query Service $Service_query - Done."
 		}
 		else {
-			if($intAnswer -eq 6){
+			if ($intAnswer -eq 6) {
 				Add-Logs "$COMPUTERNAME - Checking the Service $Service_query ..."
-				$Service_query_return=Get-WmiObject -computername $ComputerName Win32_Service -Filter "Name='$Service_query'" |Out-String
+				$Service_query_return = Get-WmiObject -ComputerName $ComputerName Win32_Service -Filter "Name='$Service_query'" | Out-String
 				Add-Logs "$COMPUTERNAME - Command Sent! Service $Service_query"
 				Add-RichTextBox $Service_query_return
 				Add-Logs -Text "$ComputerName - Query Service $Service_query - Done."
@@ -6180,24 +5826,24 @@ function Call-MainForm_pff
 		}
 		#Add-Logs $($error[0].Exception.Message)
 	}
-	
-	$button_servicesAll_Click={
+
+	$button_servicesAll_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Services - All Services + Owners"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName |select Name,ProcessID,StartMode,State,@{Name="Owner";Expression={$_.StartName}}|ft -AutoSize|out-string
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName | Select-Object Name, ProcessID, StartMode, State, @{Name = "Owner"; Expression = { $_.StartName } } | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $Services_StartModeAuto
-		
+
 	}
-	
-	$button_servicesStop_Click={
-		#Button Types 
+
+	$button_servicesStop_Click = {
+		#Button Types
 		#
 		#$a = new-object -comobject wscript.shell
 		#$intAnswer = $a.popup("Do you want to continue ?",0,"Shutdown",4)
 		#if ($intAnswer -eq 6){do something}
-		#Value  Description  
+		#Value  Description
 		#0 Show OK button.
 		#1 Show OK and Cancel buttons.
 		#2 Show Abort, Retry, and Ignore buttons.
@@ -6211,103 +5857,103 @@ function Call-MainForm_pff
 		#$Service_query = Read-Host "Enter the Service Name to Stop `n"
 		$Service_query = $textbox_servicesAction.text
 		Add-logs -text "$ComputerName - Service to Stop: $Service_query"
-		$a = new-object -comobject wscript.shell
-		$intAnswer = $a.popup("Do you want to continue ?",0,"$ComputerName - Stop Service: $Service_query",4)
+		$a = New-Object -ComObject wscript.shell
+		$intAnswer = $a.popup("Do you want to continue ?", 0, "$ComputerName - Stop Service: $Service_query", 4)
 		if (($ComputerName -like "localhost") -and ($intAnswer -eq 6)) {
 			Add-logs -text "$ComputerName - Stopping Service: $Service_query ..."
-			$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
+			$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
 			$Service_query_return.stopservice()
 			Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be stopped"
 			Add-RichTextBox $Service_query_return
 			Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 			Start-Sleep -Milliseconds 1000
-			$Service_query_result=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"|Out-String
+			$Service_query_result = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 			Add-RichTextBox $Service_query_result
 			Add-Logs -Text "$ComputerName - Stop Service $Service_query - Done."
 		}#end IF
 		else {
-			if ($intAnswer -eq 6){
+			if ($intAnswer -eq 6) {
 				Add-logs -text "$ComputerName - Stopping Service: $Service_query ..."
-				$Service_query_return=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"
+				$Service_query_return = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'"
 				$Service_query_return.stopservice()
 				Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be stopped"
 				Add-RichTextBox $Service_query_return
 				Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 				Start-Sleep -Milliseconds 1000
-				$Service_query_result=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"|Out-String
+				$Service_query_result = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'" | Out-String
 				Add-RichTextBox $Service_query_result
 				Add-Logs -Text "$ComputerName - Stop Service $Service_query - Done."
 			}#end IF
 		}#end ELSE
 	}
-	
-	$mRemoteToolStripMenuItem_Click={Start-Process ./tools/mremote.exe}
-	
-	$button_DiskPhysical_Click={
+
+	$mRemoteToolStripMenuItem_Click = { Start-Process ./tools/mremote.exe }
+
+	$button_DiskPhysical_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Drive - Physical Disk"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Disks_Physical = Get-WmiObject Win32_DiskDrive -ComputerName $ComputerName|Select DeviceID, `
-	    Model,`
-	    Manufacturer,`
-	    @{Name="SizeGB";Expression={$_.Size/1GB}}, `
-	    Caption, `
-	    Partitions, `
-	    SystemName,`
-	    Status,`
-	    InterfaceType,`
-	    MediaType,`
-	    SerialNumber,`
-	    SCSIBus,SCSILogicalUnit,SCSIPort,SCSITargetId| fl |Out-String
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Disks_Physical = Get-WmiObject Win32_DiskDrive -ComputerName $ComputerName | Select-Object DeviceID, `
+			Model, `
+			Manufacturer, `
+		@{Name = "SizeGB"; Expression = { $_.Size / 1GB } }, `
+			Caption, `
+			Partitions, `
+			SystemName, `
+			Status, `
+			InterfaceType, `
+			MediaType, `
+			SerialNumber, `
+			SCSIBus, SCSILogicalUnit, SCSIPort, SCSITargetId | Format-List | Out-String
 		Add-RichTextBox $Disks_Physical
-		
+
 	}
-	
-	$button_DiskLogical_Click={
+
+	$button_DiskLogical_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Drive - Logical Disk"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Disks_Logical=Get-WMIObject Win32_LogicalDisk -ComputerName $ComputerName| select DeviceId,`
-			DriveType,`
-			@{Name="DriveTypeInfo";Expression={switch ($_.DriveType){0{"Unknown"}1{"No Root Directory"}2{"Removable Disk"}3{"Local Disk"}4{"Network Drive"}5{"Compact Disc"}6{"RAM Disk"}}}},`
-			FileSystem,`
-			@{Name="FreeSpaceGB";Expression={$_.FreeSpace/1GB}},`
-			@{Name="SizeGB";Expression={$_.Size/1GB}},`
-			@{Name="%Free";Expression={((100*($_.FreeSpace))/$_.Size)}}, 
-			@{Name="%Usage";Expression={((($_.size) - ($_.Freespace))*100)/$_.size}}, 
-			VolumeName,`
-			SystemName,`
-			Description,`
-			InstallDate,`
-			Compressed,`
-			VolumeDirty,`
-			VolumeSerialNumber|fl | Out-String
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Disks_Logical = Get-WmiObject Win32_LogicalDisk -ComputerName $ComputerName | Select-Object DeviceId, `
+			DriveType, `
+		@{Name = "DriveTypeInfo"; Expression = { switch ($_.DriveType) { 0 { "Unknown" }1 { "No Root Directory" }2 { "Removable Disk" }3 { "Local Disk" }4 { "Network Drive" }5 { "Compact Disc" }6 { "RAM Disk" } } } }, `
+			FileSystem, `
+		@{Name = "FreeSpaceGB"; Expression = { $_.FreeSpace / 1GB } }, `
+		@{Name = "SizeGB"; Expression = { $_.Size / 1GB } }, `
+		@{Name = "%Free"; Expression = { ((100 * ($_.FreeSpace)) / $_.Size) } },
+		@{Name = "%Usage"; Expression = { ((($_.size) - ($_.Freespace)) * 100) / $_.size } },
+		VolumeName, `
+			SystemName, `
+			Description, `
+			InstallDate, `
+			Compressed, `
+			VolumeDirty, `
+			VolumeSerialNumber | Format-List | Out-String
 		Add-RichTextBox $Disks_Logical
-		
+
 	}
-	
-	$button_EventsLogNames_Click={
+
+	$button_EventsLogNames_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - EventLog - LogNames list"
 		if ($ComputerName -eq "localhost") {
-			$EventsLog = Get-EventLog -list |Format-List|Out-String
-			Add-RichTextBox $EventsLog	
+			$EventsLog = Get-EventLog -List | Format-List | Out-String
+			Add-RichTextBox $EventsLog
 		}
 		else {
-			$EventsLog = Get-EventLog -list -ComputerName $ComputerName |Format-List|Out-String
+			$EventsLog = Get-EventLog -List -ComputerName $ComputerName | Format-List | Out-String
 			Add-RichTextBox $EventsLog
 		}
 	}
-	
-	$button_servicesStart_Click={
-		#Button Types 
+
+	$button_servicesStart_Click = {
+		#Button Types
 		#
 		#$a = new-object -comobject wscript.shell
 		#$intAnswer = $a.popup("Do you want to continue ?",0,"Shutdown",4)
 		#if ($intAnswer -eq 6){do something}
-		#Value  Description  
+		#Value  Description
 		#0 Show OK button.
 		#1 Show OK and Cancel buttons.
 		#2 Show Abort, Retry, and Ignore buttons.
@@ -6318,83 +5964,83 @@ function Call-MainForm_pff
 		Add-logs -text "$ComputerName - Start Service"
 		$Service_query = $textbox_servicesAction.text
 		Add-logs -text "$ComputerName - Service to start: $Service_query"
-		$a = new-object -comobject wscript.shell
-		$intAnswer = $a.popup("Do you want to continue ?",0,"$ComputerName - Start Service: $Service_query",4)
+		$a = New-Object -ComObject wscript.shell
+		$intAnswer = $a.popup("Do you want to continue ?", 0, "$ComputerName - Start Service: $Service_query", 4)
 		if (($ComputerName -like "localhost") -and ($intAnswer -eq 6)) {
 			Add-logs -text "$ComputerName - Starting Service: $Service_query ..."
-			$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
+			$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
 			$Service_query_return.startservice()
 			Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be started"
 			Add-RichTextBox $Service_query_return
 			Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 			Start-Sleep -Milliseconds 1000
-			$Service_query_result=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"|Out-String
+			$Service_query_result = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 			Add-RichTextBox $Service_query_result
 			Add-Logs -Text "$ComputerName - Start Service $Service_query - Done."
 		}
-		else { 
-			if ($intAnswer -eq 6){
+		else {
+			if ($intAnswer -eq 6) {
 				Add-logs -text "$ComputerName - Starting Service: $Service_query ..."
-				$Service_query_return=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"
+				$Service_query_return = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'"
 				$Service_query_return.startservice()
 				Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be started"
 				Add-RichTextBox $Service_query_return
 				Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 				Start-Sleep -Milliseconds 1000
-				$Service_query_result=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"|Out-String
+				$Service_query_result = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'" | Out-String
 				Add-RichTextBox $Service_query_result
 				Add-Logs -Text "$ComputerName - Start Service $Service_query - Done."
 			}# IF
 		}#ELSE
 		#
 	}
-	
-	$button_processOwners_Click={
+
+	$button_processOwners_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Processes with owners"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
 		$owners = @{}
-		Get-WmiObject win32_process -ComputerName $ComputerName |% {$owners[$_.handle] = $_.getowner().user}
-		$ProcessALL = get-process -ComputerName $ComputerName| Select ProcessName,@{l="Owner";e={$owners[$_.id.tostring()]}},CPU,WorkingSet,Handles,Id|ft -AutoSize|out-string
+		Get-WmiObject win32_process -ComputerName $ComputerName | ForEach-Object { $owners[$_.handle] = $_.getowner().user }
+		$ProcessALL = Get-Process -ComputerName $ComputerName | Select-Object ProcessName, @{l = "Owner"; e = { $owners[$_.id.tostring()] } }, CPU, WorkingSet, Handles, Id | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $ProcessALL
-		
+
 	}
-	
-	$button_processAll_Click={
+
+	$button_processAll_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - All Processes"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$ProcessALL = get-process -ComputerName $ComputerName|out-string
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$ProcessALL = Get-Process -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $ProcessALL
 	}
-	
-	$button_ProcessGrid_Click={
+
+	$button_ProcessGrid_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - All Processes - GridView"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
 		$owners = @{}
-		Get-WmiObject win32_process -ComputerName $ComputerName |% {$owners[$_.handle] = $_.getowner().user}
+		Get-WmiObject win32_process -ComputerName $ComputerName | ForEach-Object { $owners[$_.handle] = $_.getowner().user }
 		#$ProcessALL = get-process -ComputerName $ComputerName| select processname,Id,@{l="Owner";e={$owners[$_.id.tostring()]}}|out-string
-		$ProcessALL = get-process -ComputerName $ComputerName| Select @{l="Owner";e={$owners[$_.id.tostring()]}},*|Out-GridView
+		$ProcessALL = Get-Process -ComputerName $ComputerName | Select-Object @{l = "Owner"; e = { $owners[$_.id.tostring()] } }, * | Out-GridView
 	}
-	
-	$button_servicesGridView_Click={
+
+	$button_servicesGridView_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - All Services - GridView"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName |Select-Object *,@{Name="Owner";Expression={$_.StartName}}|Out-GridView
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName | Select-Object *, @{Name = "Owner"; Expression = { $_.StartName } } | Out-GridView
 	}
-	
-	$button_SharesGrid_Click={
+
+	$button_SharesGrid_Click = {
 		Get-ComputerTxtBox
 		#Add-RichTextBox "$ComputerName - All Shares - GridView"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$SharesList = Get-WmiObject win32_share -computer $ComputerName |Select-Object -Property __SERVER,Name,Path,Status,Description,*|Sort-Object name| Out-GridView
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$SharesList = Get-WmiObject win32_share -computer $ComputerName | Select-Object -Property __SERVER, Name, Path, Status, Description, * | Sort-Object name | Out-GridView
 	}
-	
-	$ToolStripMenuItem_TerminalAdmin_Click={
-		if ($current_OS_caption -like "*2008*"){
+
+	$ToolStripMenuItem_TerminalAdmin_Click = {
+		if ($current_OS_caption -like "*2008*") {
 			$cmd = "tsadmin.msc"
 			Start-Process $cmd
 		}
@@ -6402,13 +6048,13 @@ function Call-MainForm_pff
 			Start-Process tsadmin.exe
 		}
 	}
-	$ToolStripMenuItem_ADSearchDialog_Click={
-		$cmd="$env:windir\system32\rundll32.exe"
-		$param="dsquery.dll,OpenQueryWindow"
+	$ToolStripMenuItem_ADSearchDialog_Click = {
+		$cmd = "$env:windir\system32\rundll32.exe"
+		$param = "dsquery.dll,OpenQueryWindow"
 		Start-Process $cmd $param
 	}
-	
-	$ToolStripMenuItem_ADPrinters_Click={
+
+	$ToolStripMenuItem_ADPrinters_Click = {
 		$TemporaryFile = [System.IO.Path]::GetTempFileName().Replace(".tmp", ".qds")
 		Add-Content $TemporaryFile "
 		[CommonQuery]
@@ -6434,14 +6080,14 @@ function Call-MainForm_pff
 		Start-Sleep -Seconds 3
 		Remove-Item -Force $TemporaryFile
 	}
-	
-	$button_outputCopy_Click={
-		
+
+	$button_outputCopy_Click = {
+
 		Add-logs -text "Copying content of Logs Richtextbox to Clipboard"
 		$texte = $richtextbox_output.Text
-		Add-ClipBoard -text $texte}
-	
-	$button_ExportRTF_Click={
+		Add-ClipBoard -text $texte }
+
+	$button_ExportRTF_Click = {
 		$filename = [System.IO.Path]::GetTempFileName()
 		$richtextbox_output.SaveFile($filename)
 		Add-logs -text "Sending RichTextBox to wordpad (RTF)..."
@@ -6449,9 +6095,8 @@ function Call-MainForm_pff
 		Start-Sleep -Seconds 5
 		#Remove-Item -Force $filename
 	}
-	
-	
-	$button_networkPing_Click={
+
+	$button_networkPing_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Ping"
 		$cmd = "cmd"
@@ -6459,8 +6104,8 @@ function Call-MainForm_pff
 		$param = "/k ping $param_user $computername"
 		Start-Process $cmd $param
 	}
-	
-	$button_networkPathPing_Click={
+
+	$button_networkPathPing_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - PathPing"
 		$cmd = "cmd"
@@ -6468,101 +6113,101 @@ function Call-MainForm_pff
 		$param = "/k pathping $param_user $computername"
 		Start-Process $cmd $param
 	}
-	
-	$button_servicesNonStandardUser_Click={
+
+	$button_servicesNonStandardUser_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Services - Non-Standard Windows Service Accounts"
-		$NormalAccount1="LocalSystem"
-		$NormalAccount2="NT Authority\\LocalService"
-		$NormalAccount3="NT Authority\\NetworkService"
+		$NormalAccount1 = "LocalSystem"
+		$NormalAccount2 = "NT Authority\\LocalService"
+		$NormalAccount3 = "NT Authority\\NetworkService"
 		$wql = 'Select Name, DisplayName, StartName, __Server From Win32_Service WHERE ((StartName != "LocalSystem") and (StartName != "NT Authority\\LocalService") and (StartName != "NT Authority\\NetworkService"))'
-		$query = Get-WmiObject -Query $wql -ComputerName $ComputerName -ErrorAction Stop | Select-Object __SERVER, StartName, Name, DisplayName|Format-Table -AutoSize |Out-String
-		if ($query -eq $null){Add-RichTextBox "$Computername - All the services use Standard Windows Service Accounts"}
-		else {Add-RichTextBox $query}
+		$query = Get-WmiObject -Query $wql -ComputerName $ComputerName -ErrorAction Stop | Select-Object __SERVER, StartName, Name, DisplayName | Format-Table -AutoSize | Out-String
+		if ($query -eq $null) { Add-RichTextBox "$Computername - All the services use Standard Windows Service Accounts" }
+		else { Add-RichTextBox $query }
 	}
-	$button_networkTestPort_Click={
+	$button_networkTestPort_Click = {
 		#$error.clear()
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Test-Port"
 		$port = Show-Inputbox -message "Enter a port to test" -title "$ComputerName - Test-Port" -default "80"
-		if ($port -ne ""){
+		if ($port -ne "") {
 			#$port = Read-Host -Prompt "Enter a port to test on $ComputerName"
 			$result = Test-TcpPort $ComputerName $port
-			Add-RichTextBox $result	
+			Add-RichTextBox $result
 		}
 	}
-	
-	$button_networkNsLookup_Click={
+
+	$button_networkNsLookup_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Nslookup"
 		$cmd = "cmd"
 		$param = "/k nslookup $ComputerName"
 		Start-Process $cmd $param -WorkingDirectory c:\
 	}
-	
-	$button_networkTracert_Click={
+
+	$button_networkTracert_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Trace Route (Tracert)"
 		$cmd = "cmd"
 		$param = "/k tracert $($tb_tracert_paramuser.text) $ComputerName"
 		Start-Process $cmd $param -WorkingDirectory c:\
 	}
-	
-	$button_networkRoutePrint_Click={
+
+	$button_networkRoutePrint_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Route Table (route print)"
-		$Items = get-wmiobject -class "Win32_IP4RouteTable" -namespace "root\CIMV2" -computername $ComputerName|select destination, mask, NextHop, metric1 |Format-Table -AutoSize |Out-String
+		$Items = Get-WmiObject -Class "Win32_IP4RouteTable" -Namespace "root\CIMV2" -ComputerName $ComputerName | Select-Object destination, mask, NextHop, metric1 | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $Items
 	}
-	
-	$button_processLastHour_Click={
+
+	$button_processLastHour_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - Processes - Processes started in last hour"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
 		$owners = @{}
-		Get-WmiObject win32_process -ComputerName $ComputerName|% {$owners[$_.handle] = $_.getowner().user}
-		$ProcessALL = get-process -ComputerName $ComputerName| Where-Object { trap { continue }  (New-Timespan $_.StartTime).TotalMinutes -le 10 }|Select ProcessName,@{l="StartTime";e={$_.StartTime}},@{l="Owner";e={$owners[$_.id.tostring()]}},CPU,WorkingSet,Handles,Id|fl|out-string
+		Get-WmiObject win32_process -ComputerName $ComputerName | ForEach-Object { $owners[$_.handle] = $_.getowner().user }
+		$ProcessALL = Get-Process -ComputerName $ComputerName | Where-Object { trap { continue }  (New-TimeSpan $_.StartTime).TotalMinutes -le 10 } | Select-Object ProcessName, @{l = "StartTime"; e = { $_.StartTime } }, @{l = "Owner"; e = { $owners[$_.id.tostring()] } }, CPU, WorkingSet, Handles, Id | Format-List | Out-String
 		Add-RichTextBox $ProcessALL
 	}
-	
-	$button_PasswordGen_Click={
+
+	$button_PasswordGen_Click = {
 		#Clear-RichTextBox
 		Add-Logs "Generating a Password"
 		$Passwordlist = [Char[]]'abcdefgABCDEFG0123456&%$'
-		$Newpass = -join (1..8 | Foreach-Object { Get-Random $Passwordlist -count 1 })|Out-String
+		$Newpass = -join (1..8 | ForEach-Object { Get-Random $Passwordlist -Count 1 }) | Out-String
 		Add-RichTextBox $Newpass
 	}
-	$ToolStripMenuItem_systemInformationMSinfo32exe_Click={Start-Process msinfo32.exe}
-	$ToolStripMenuItem_addRemovePrograms_Click={Start-Process appwiz.cpl;Add-logs -text "Localhost - Add/Remove Programs (appwiz.cpl)"}
-	$ToolStripMenuItem_administrativeTools_Click={Start-Process (Control admintools);Add-logs -text "Localhost - Administrative Tools (Control admintools)"}
-	$ToolStripMenuItem_certificateManager_Click={Start-Process certmgr.msc}
-	$ToolStripMenuItem_addRemoveProgramsWindowsFeatures_Click={$cmd = "rundll32.exe";$param = "shell32.dll,Control_RunDLL appwiz.cpl,,2";Start-process $cmd -ArgumentList $param;Add-logs -text "Localhost - Add/Remove Programs - Windows Features ($cmd $param)"}
-	$button_mmcShares_Click={$ComputerName=$textbox_computername.Text;Add-logs -text "$ComputerName - Shared Folders MMC (fsmgmt.msc /computer:$ComputerName";$cmd="fsmgmt.msc";$param="/computer:$ComputerName";Start-Process $cmd $param}
-	$ToolStripMenuItem_systemproperties_Click={Start-Process "sysdm.cpl"}
-	$ToolStripMenuItem_Wordpad_Click={Start-Process "wordpad"}
-	$ToolStripMenuItem_sharedFolders_Click={Start-Process "fsmgmt.msc"}
-	$ToolStripMenuItem_performanceMonitor_Click={Start-Process "Perfmon.msc"}
-	$ToolStripMenuItem_networkConnections_Click={Start-Process "ncpa.cpl"}
-	$ToolStripMenuItem_devicemanager_Click={Start-Process "devmgmt.msc"}
-	$ToolStripMenuItem_groupPolicyEditor_Click={start-process "Gpedit.msc"}
-	$ToolStripMenuItem_localUsersAndGroups_Click={start-process "lusrmgr.msc"}
-	$ToolStripMenuItem_diskManagement_Click={start-process "diskmgmt.msc"}
-	$ToolStripMenuItem_localSecuritySettings_Click={Start-Process "secpol.msc"}
-	$ToolStripMenuItem_componentServices_Click={Start-Process "dcomcnfg"}
-	$ToolStripMenuItem_scheduledTasks_Click={Start-Process (control schedtasks)}
-	$ToolStripMenuItem_PowershellISE_Click={start-process powershell_ise.exe}
-	
-	$button_servicesAutoNotStarted_Click={
+	$ToolStripMenuItem_systemInformationMSinfo32exe_Click = { Start-Process msinfo32.exe }
+	$ToolStripMenuItem_addRemovePrograms_Click = { Start-Process appwiz.cpl; Add-logs -text "Localhost - Add/Remove Programs (appwiz.cpl)" }
+	$ToolStripMenuItem_administrativeTools_Click = { Start-Process (Control admintools); Add-logs -text "Localhost - Administrative Tools (Control admintools)" }
+	$ToolStripMenuItem_certificateManager_Click = { Start-Process certmgr.msc }
+	$ToolStripMenuItem_addRemoveProgramsWindowsFeatures_Click = { $cmd = "rundll32.exe"; $param = "shell32.dll,Control_RunDLL appwiz.cpl,,2"; Start-Process $cmd -ArgumentList $param; Add-logs -text "Localhost - Add/Remove Programs - Windows Features ($cmd $param)" }
+	$button_mmcShares_Click = { $ComputerName = $textbox_computername.Text; Add-logs -text "$ComputerName - Shared Folders MMC (fsmgmt.msc /computer:$ComputerName"; $cmd = "fsmgmt.msc"; $param = "/computer:$ComputerName"; Start-Process $cmd $param }
+	$ToolStripMenuItem_systemproperties_Click = { Start-Process "sysdm.cpl" }
+	$ToolStripMenuItem_Wordpad_Click = { Start-Process "wordpad" }
+	$ToolStripMenuItem_sharedFolders_Click = { Start-Process "fsmgmt.msc" }
+	$ToolStripMenuItem_performanceMonitor_Click = { Start-Process "Perfmon.msc" }
+	$ToolStripMenuItem_networkConnections_Click = { Start-Process "ncpa.cpl" }
+	$ToolStripMenuItem_devicemanager_Click = { Start-Process "devmgmt.msc" }
+	$ToolStripMenuItem_groupPolicyEditor_Click = { Start-Process "Gpedit.msc" }
+	$ToolStripMenuItem_localUsersAndGroups_Click = { Start-Process "lusrmgr.msc" }
+	$ToolStripMenuItem_diskManagement_Click = { Start-Process "diskmgmt.msc" }
+	$ToolStripMenuItem_localSecuritySettings_Click = { Start-Process "secpol.msc" }
+	$ToolStripMenuItem_componentServices_Click = { Start-Process "dcomcnfg" }
+	$ToolStripMenuItem_scheduledTasks_Click = { Start-Process (control schedtasks) }
+	$ToolStripMenuItem_PowershellISE_Click = { Start-Process powershell_ise.exe }
+
+	$button_servicesAutoNotStarted_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Services - Services with StartMode: Automatic and Status: NOT Running"
-		if ($ComputerName -eq "localhost") {$ComputerName = "."}
-		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "startmode='auto' AND state!='running'"|Select-Object DisplayName,Name,StartMode,State|ft -AutoSize|out-string
+		if ($ComputerName -eq "localhost") { $ComputerName = "." }
+		$Services_StartModeAuto = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "startmode='auto' AND state!='running'" | Select-Object DisplayName, Name, StartMode, State | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $Services_StartModeAuto
 	}
-	
-	$textbox_computername_TextChanged={
+
+	$textbox_computername_TextChanged = {
 		$label_OSStatus.Text = ""
 		$label_PermissionStatus.Text = ""
 		$label_PingStatus.Text = ""
@@ -6571,243 +6216,242 @@ function Call-MainForm_pff
 		$label_UptimeStatus.Text = ""
 		$now = Get-DateSortable
 		if ($textbox_computername.Text -eq "") {
-			$textbox_computername.BackColor =  [System.Drawing.Color]::FromArgb(255, 128, 128);
+			$textbox_computername.BackColor = [System.Drawing.Color]::FromArgb(255, 128, 128);
 			add-logs -text "Please Enter a ComputerName"
 			$errorprovider1.SetError($textbox_computername, "Please enter a ComputerName.")
 		}
 		if ($textbox_computername.Text -ne "") {
-			$textbox_computername.BackColor =  [System.Drawing.Color]::FromArgb(255, 255, 192)
+			$textbox_computername.BackColor = [System.Drawing.Color]::FromArgb(255, 255, 192)
 			$errorprovider1.SetError($textbox_computername, "")
 		}
 		$tabcontrol_computer.Enabled = $textbox_computername.Text -ne ""
 		$button_Check.Enabled = $textbox_computername.Text -ne ""
 	}
-	
-	$button_IEHPHomepage_Click={
+
+	$button_IEHPHomepage_Click = {
 		Get-ComputerTxtBox
-		$HPHomePage_command="iexplore.exe"
-		$HPHomePage_arguments = "https://$ComputerName"+":2381"
+		$HPHomePage_command = "iexplore.exe"
+		$HPHomePage_arguments = "https://$ComputerName" + ":2381"
 		Add-Logs -text "$ComputerName - Internet Explorer - Launching HP Homepage (default port 2381)"
 		Start-Process $HPHomePage_command $HPHomePage_arguments
 	}
-	
-	$button_IEDellOpenManage_Click={
+
+	$button_IEDellOpenManage_Click = {
 		Get-ComputerTxtBox
-		$DellOM_command="iexplore.exe"
-		$DellOM_arguments = "https://$ComputerName"+":1311"
+		$DellOM_command = "iexplore.exe"
+		$DellOM_arguments = "https://$ComputerName" + ":1311"
 		Add-Logs -text "$ComputerName - Internet Explorer - Launching Dell OpenManage (default port 1311)"
 		Start-Process $DellOM_command $DellOM_arguments
 	}
-	
-	$button_HTTP_Click={
+
+	$button_HTTP_Click = {
 		Get-ComputerTxtBox
-		$HPHomePage_command="iexplore.exe"
-		$HPHomePage_arguments = "http://$ComputerName"+":80"
+		$HPHomePage_command = "iexplore.exe"
+		$HPHomePage_arguments = "http://$ComputerName" + ":80"
 		Add-Logs -text "$ComputerName - Internet Explorer - Default Website (default port 80)"
 		Start-Process $HPHomePage_command $HPHomePage_arguments
 	}
-	
-	$button_Processor_Click={
+
+	$button_Processor_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Processor Information"
-		$result = Get-Processor -ComputerName $ComputerName|Out-String
+		$result = Get-Processor -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$buttonShutdown_Click={
+
+	$buttonShutdown_Click = {
 		$shutdown_gui_cmd = "shutdown"
 		$shutdown_gui_arguments = "/i"
 		Start-Process $shutdown_gui_cmd $shutdown_gui_arguments
 	}
-	
-	
-	$button_UsersGroupLocalUsers_Click={
+
+	$button_UsersGroupLocalUsers_Click = {
 		Get-ComputerTxtBox
-		$result = Get-WmiObject -class "Win32_UserAccount" -namespace "root\CIMV2" -filter "LocalAccount = True" -computername $ComputerName|Select-Object AccountType,Caption,Description,Disabled,Domain,FullName,InstallDate,LocalAccount,Lockout,Name,PasswordChangeable,PasswordExpires,PasswordRequired,SID,SIDType,Status|fl|Out-String
+		$result = Get-WmiObject -Class "Win32_UserAccount" -Namespace "root\CIMV2" -Filter "LocalAccount = True" -ComputerName $ComputerName | Select-Object AccountType, Caption, Description, Disabled, Domain, FullName, InstallDate, LocalAccount, Lockout, Name, PasswordChangeable, PasswordExpires, PasswordRequired, SID, SIDType, Status | Format-List | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_UsersGroupLocalGroups_Click={
+
+	$button_UsersGroupLocalGroups_Click = {
 		$button_UsersGroupLocalGroups.Enabled = $false
 		Get-ComputerTxtBox
-		$result = Get-WmiObject -Class Win32_Group -ComputerName $ComputerName	| Where-Object {$_.LocalAccount}|ft -auto|Out-String
+		$result = Get-WmiObject -Class Win32_Group -ComputerName $ComputerName	| Where-Object { $_.LocalAccount } | Format-Table -auto | Out-String
 		Add-RichTextBox $result
 		$button_UsersGroupLocalGroups.Enabled = $true
 	}
-	
-	$button_SYDIGo_Click={
+
+	$button_SYDIGo_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - SYDI Tool (Script Your Documentation Instantly) - Microsoft Word required for DOC format."
 		$SYDI_Cmd = "cmd.exe"
 		$SYDI_VBS = "$ScriptsFolder\sydi-server.vbs"
 		$SYDI_GuiParam = $textbox_sydi_arguments.Text
 		$SYDI_SelectedFormat = $combobox_sydi_format.SelectedItem
-		$SYDI_date = get-date -Format "yyyyMMddHH_mmss" |Out-String
+		$SYDI_date = Get-Date -Format "yyyyMMddHH_mmss" | Out-String
 		$SYDI_SavingFile = ""
-		if ($SYDI_SelectedFormat -eq "XML"){
+		if ($SYDI_SelectedFormat -eq "XML") {
 			#Add-RichTextBox "SYDI - Selected Format: $SYDI_SelectedFormat`n"
 			$argument = "-t$ComputerName -wabefghipPqrsu -racdklp -ex -o`"$SavePath\$ComputerName-$SYDI_date.xml`""
 			Start-Proc -exe "cmd.exe" -arguments "/k cscript $SYDI_VBS $argument"
 			Add-RichTextBox "SYDI - File will be placed on desktop: $env:userprofile\desktop\$ComputerName-<date>.xml`n"
-			ii $env:userprofile\desktop
+			Invoke-Item $env:userprofile\desktop
 		}
-		if ($SYDI_SelectedFormat -eq "DOC"){
+		if ($SYDI_SelectedFormat -eq "DOC") {
 			#Add-RichTextBox "SYDI - Selected Format: $SYDI_SelectedFormat`n"
 			$argument = "-t$ComputerName -wabefghipPqrsu -racdklp -ew -o`"$SavePath\$ComputerName-$SYDI_date.doc`""
 			Start-Proc -exe "cmd.exe" -arguments "/k cscript $SYDI_VBS $argument"
 			Add-RichTextBox "SYDI - File will be placed on desktop: $env:userprofile\desktop\$ComputerName-<date>.doc/docx`n"
-			ii $env:userprofile\desktop
+			Invoke-Item $env:userprofile\desktop
 		}
-		if ($SYDI_SelectedFormat -eq ""){Add-RichTextBox "SYDI - No Format Selected, please choose between DOC and XML`n"}	
+		if ($SYDI_SelectedFormat -eq "") { Add-RichTextBox "SYDI - No Format Selected, please choose between DOC and XML`n" }
 	}
-	
-	$button_PageFile_Click={
+
+	$button_PageFile_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Page File Information and Settings"
 		$ResultPageFile = Get-PageFile -ComputerName $ComputerName | Out-String
 		$ResultPageFileSettings = Get-PageFileSetting -ComputerName $ComputerName | Out-String
 		Add-RichTextBox "$resultPageFile `r $resultPageFileSettings"
 	}
-	
-	$button_DiskPartition_Click={
+
+	$button_DiskPartition_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Drive - Partition"
-		
+
 		$result = Get-DiskPartition -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
-		
+
 	}
-	
-	$button_DiskUsage_Click={
+
+	$button_DiskUsage_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Hard Drive - DiskSpace"
 		$result = Get-DiskSpace -ComputerName $ComputerName | Out-String
 		Add-RichTextBox -text $result
 	}
-	
-	$button_networkIPConfig_Click={
+
+	$button_networkIPConfig_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network - Configuration"
-		$result = Get-IP -ComputerName $ComputerName | Format-Table Name,IP4,IP4Subnet,DefaultGWY,MacAddress,DNSServer,WinsPrimary,WinsSecondary -AutoSize | Out-String -Width $richtextbox_output.Width
+		$result = Get-IP -ComputerName $ComputerName | Format-Table Name, IP4, IP4Subnet, DefaultGWY, MacAddress, DNSServer, WinsPrimary, WinsSecondary -AutoSize | Out-String -Width $richtextbox_output.Width
 		Add-RichTextBox "$result`n"
 	}
-	
-	$button_DiskRelationship_Click={
+
+	$button_DiskRelationship_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Disk - Disks Relationship"
 		$result = Get-DiskRelationship -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_DiskMountPoint_Click={
+
+	$button_DiskMountPoint_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Disk - MountPoint"
 		$result = Get-MountPoint -ComputerName $ComputerName | Out-String
-		if ($result -ne $null){Add-RichTextBox $result}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Hard Disk - MountPoint" -Prompt "$ComputerName - No MountPoint detected" -Icon "Information"}
+		if ($result -ne $null) { Add-RichTextBox $result }
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Hard Disk - MountPoint" -Prompt "$ComputerName - No MountPoint detected" -Icon "Information" }
 	}
-	
-	$button_DiskMappedDrive_Click={
+
+	$button_DiskMappedDrive_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Hard Disk - Mapped Drive"
 		$result = Get-MappedDrive -ComputerName $ComputerName | Out-String
-		if ($result -ne $null){Add-RichTextBox $result}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Mapped Drive" -Prompt "$ComputerName - No Mapped Drive detected" -Icon "Information"}
+		if ($result -ne $null) { Add-RichTextBox $result }
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Mapped Drive" -Prompt "$ComputerName - No Mapped Drive detected" -Icon "Information" }
 	}
-	
-	$button_Memory_Click={
+
+	$button_Memory_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Memory Configuration"
 		$result = Get-MemoryConfiguration -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_NIC_Click={
+
+	$button_NIC_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Network Interface Card Configuration (slow)"
 		$result = Get-NICInfo -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_MotherBoard_Click={
+
+	$button_MotherBoard_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - MotherBoard"
 		$result = Get-MotherBoard -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_networkRouteTable_Click={
+
+	$button_networkRouteTable_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Route table"
-		$result = Get-Routetable  -ComputerName $ComputerName |ft -auto| Out-String
+		$result = Get-Routetable -ComputerName $ComputerName | Format-Table -auto | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$button_SystemType_Click={
+
+	$button_SystemType_Click = {
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - System Type"
-		$result = get-systemtype -ComputerName $ComputerName| Out-String
+		$result = get-systemtype -ComputerName $ComputerName | Out-String
 		Add-RichTextBox $result
 	}
-	
-	$richtextbox_output_TextChanged={
+
+	$richtextbox_output_TextChanged = {
 		#Scroll to Bottom when text is changed
-		$richtextbox_output.SelectionStart=$richtextbox_output.Text.Length
+		$richtextbox_output.SelectionStart = $richtextbox_output.Text.Length
 		$richtextbox_output.ScrollToCaret()
 	}
-	
-	$richtextbox_Logs_TextChanged={
-		$richtextbox_Logs.SelectionStart=$richtextbox_Logs.Text.Length
+
+	$richtextbox_Logs_TextChanged = {
+		$richtextbox_Logs.SelectionStart = $richtextbox_Logs.Text.Length
 		$richtextbox_Logs.ScrollToCaret()
-		if ($error[0]){Add-logs -text $($error[0].Exception.Message)}
+		if ($error[0]) { Add-logs -text $($error[0].Exception.Message) }
 	}
-	$ToolStripMenuItem_adExplorer_Click={
+	$ToolStripMenuItem_adExplorer_Click = {
 		Add-logs -text "Localhost - SysInternals AdExplorer"
-		$command="AdExplorer.exe"
-		Start-Process $command -WorkingDirectory $ToolsFolder		
+		$command = "AdExplorer.exe"
+		Start-Process $command -WorkingDirectory $ToolsFolder
 	}
-	
-	$button_HTTPS_Click={
+
+	$button_HTTPS_Click = {
 		Get-ComputerTxtBox
-		$HPHomePage_command="iexplore.exe"
+		$HPHomePage_command = "iexplore.exe"
 		$HPHomePage_arguments = "https://$ComputerName"
 		Start-Process $HPHomePage_command $HPHomePage_arguments
 		Add-Logs -text "$ComputerName - Internet Explorer - Default Website HTTPS (default port 81)"
 	}
-	
-	$button_FTP_Click={
+
+	$button_FTP_Click = {
 		Get-ComputerTxtBox
-		$HPHomePage_command="iexplore.exe"
-		$HPHomePage_arguments = "ftp://$ComputerName"+":21"
+		$HPHomePage_command = "iexplore.exe"
+		$HPHomePage_arguments = "ftp://$ComputerName" + ":21"
 		Start-Process $HPHomePage_command $HPHomePage_arguments
 		Add-Logs -text "$ComputerName - Internet Explorer - FTP Site (default port 21)"
 	}
-	
-	$button_Telnet_Click={
+
+	$button_Telnet_Click = {
 		Get-ComputerTxtBox
-		$Telnet_command="cmd.exe"
+		$Telnet_command = "cmd.exe"
 		$Telnet_Args = "/k telnet.exe $ComputerName"
 		Start-Process $Telnet_command $Telnet_Args
 		Add-Logs -text "$ComputerName - Telnet (default port 23)"
 	}
-	
-	$textbox_servicesAction_Click={$textbox_servicesAction.text = ""}
-	
-	$button_servicesRestart_Click={
-		#Button Types 
+
+	$textbox_servicesAction_Click = { $textbox_servicesAction.text = "" }
+
+	$button_servicesRestart_Click = {
+		#Button Types
 		#
 		#$a = new-object -comobject wscript.shell
 		#$intAnswer = $a.popup("Do you want to continue ?",0,"Shutdown",4)
 		#if ($intAnswer -eq 6){do something}
-		#Value  Description  
+		#Value  Description
 		#0 Show OK button.
 		#1 Show OK and Cancel buttons.
 		#2 Show Abort, Retry, and Ignore buttons.
 		#3 Show Yes, No, and Cancel buttons.
 		#4 Show Yes and No buttons.
 		#5 Show Retry and Cancel buttons.
-		
+
 		#Clear-RichTextBox
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Restart Service"
@@ -6816,93 +6460,93 @@ function Call-MainForm_pff
 		$Service_query = $textbox_servicesAction.text
 		Add-logs -text "$ComputerName - Service to Restart: $Service_query"
 		#Add-RichTextBox "SERVICE: $Service_query"
-		$a = new-object -comobject wscript.shell
-		$intAnswer = $a.popup("Do you want to continue ?",0,"$ComputerName - Start Service: $Service_query",4)
+		$a = New-Object -ComObject wscript.shell
+		$intAnswer = $a.popup("Do you want to continue ?", 0, "$ComputerName - Start Service: $Service_query", 4)
 		if (($ComputerName -like "localhost") -and ($intAnswer -eq 6)) {
 			Add-logs -text "$ComputerName - Stopping Service: $Service_query ..."
-			$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
+			$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
 			$Service_query_return.stopservice()
 			Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be stopped"
 			Add-RichTextBox $Service_query_return
 			Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 			Start-Sleep -Milliseconds 1000
-			$Service_query_result=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"|Out-String
+			$Service_query_result = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 			Add-RichTextBox $Service_query_result
 			Add-Logs -Text "$ComputerName - Stop Service $Service_query - Done."
 			Add-Logs -Text "$ComputerName - Restarting the Service $Service_query ..."
 			#Add-RichTextBox "Starting Service: $Service_query...`r"
-			$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
+			$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
 			$Service_query_return.startservice()
 			Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be started"
 			Add-RichTextBox $Service_query_return
 			Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 			Start-Sleep -Milliseconds 1000
-			$Service_query_result=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"|Out-String
+			$Service_query_result = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 			Add-RichTextBox $Service_query_result
 			Add-Logs -Text "$ComputerName - Start Service $Service_query - Done."
 		}
-		else { 
-			if ($intAnswer -eq 6){
+		else {
+			if ($intAnswer -eq 6) {
 				Add-logs -text "$ComputerName - Stopping Service: $Service_query ..."
-				$Service_query_return=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
+				$Service_query_return = Get-WmiObject Win32_Service -Filter "Name='$Service_query'"
 				$Service_query_return.stopservice()
 				Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be stopped"
 				Add-RichTextBox $Service_query_return
 				Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 				Start-Sleep -Milliseconds 1000
-				$Service_query_result=Get-WmiObject Win32_Service -Filter "Name='$Service_query'"|Out-String
+				$Service_query_result = Get-WmiObject Win32_Service -Filter "Name='$Service_query'" | Out-String
 				Add-RichTextBox $Service_query_result
 				Add-Logs -Text "$ComputerName - Stop Service $Service_query - Done."
 				Add-Logs -Text "$ComputerName - Restarting the Service $Service_query ..."
-				$Service_query_return=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"
+				$Service_query_return = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'"
 				$Service_query_return.startservice()
 				Add-Logs -Text "$ComputerName - Command Sent! $Service_query should be started"
 				Add-RichTextBox $Service_query_return
 				Add-Logs -Text "$ComputerName - Checking the status of $Service_Query ..."
 				Start-Sleep -Milliseconds 1000
-				$Service_query_result=Get-WmiObject Win32_Service -computername $ComputerName -Filter "Name='$Service_query'"|Out-String
+				$Service_query_result = Get-WmiObject Win32_Service -ComputerName $ComputerName -Filter "Name='$Service_query'" | Out-String
 				Add-RichTextBox $Service_query_result
 				Add-Logs -Text "$ComputerName - Start Service $Service_query - Done."
 			}# IF
 		}#ELSE
 		#
 	}
-	
-	$ToolStripMenuItem_hostsFileGetContent_Click={
+
+	$ToolStripMenuItem_hostsFileGetContent_Click = {
 		#TODO: Place custom script here
 		$resultHostFile = Get-HostsFile | Out-String
 		Add-RichTextBox $resultHostFile
 		Add-logs -text "LocalHost - Checking the hosts file"
 	}
-	
-	$button_HostsFile_Click={
+
+	$button_HostsFile_Click = {
 		$button_HostsFile.Enabled = $false
 		Get-ComputerTxtBox
 		Add-logs -text "LocalHost - Checking the hosts file"
-		$IP=(get-ip $ComputerName).ip4
-		if ($IP -eq $null) {$IP=(get-ip $ComputerName).ip6}
+		$IP = (get-ip $ComputerName).ip4
+		if ($IP -eq $null) { $IP = (get-ip $ComputerName).ip6 }
 		if (($ComputerName -eq "localhost") -or ($ComputerName -eq "127.0.0.1") -or ($ComputerName -eq "$env:ComputerName") -or ($ComputerName -eq $IP)) {
 			$resultHostFile = Get-HostsFile | Out-String
-			if ($resultHostFile -ne $null){
+			if ($resultHostFile -ne $null) {
 				Add-RichTextBox $resultHostFile
 			}
 		}
 		Else {
 			$resultHostsFileRemote = Get-HostsFile -computername $ComputerName | Out-String
-			if ($resultHostFile -ne $null){
+			if ($resultHostFile -ne $null) {
 				Add-RichTextBox $resultHostsFileRemote
 			}
 		}
 		$button_HostsFile.Enabled = $true
 	}
-	
-	$button_processTerminate_Click={
-		#Button Types 
+
+	$button_processTerminate_Click = {
+		#Button Types
 		#
 		#$a = new-object -comobject wscript.shell
 		#$intAnswer = $a.popup("Do you want to continue ?",0,"Shutdown",4)
 		#if ($intAnswer -eq 6){do something}
-		#Value  Description  
+		#Value  Description
 		#0 Show OK button.
 		#1 Show OK and Cancel buttons.
 		#2 Show Abort, Retry, and Ignore buttons.
@@ -6915,9 +6559,9 @@ function Call-MainForm_pff
 		#$Service_query = Read-Host "Enter the Service Name to Stop `n"
 		$Process_query = $textbox_processName.text
 		Add-logs -text "$ComputerName - Process to Terminate: $Process_query"
-		$a = new-object -comobject wscript.shell
-		$intAnswer = $a.popup("Do you want to continue ?",0,"$ComputerName - Terminate Process: $Process_query",4)
-		
+		$a = New-Object -ComObject wscript.shell
+		$intAnswer = $a.popup("Do you want to continue ?", 0, "$ComputerName - Terminate Process: $Process_query", 4)
+
 		#localhost
 		if (($ComputerName -like "localhost") -and ($intAnswer -eq 6)) {
 			Add-logs -text "$ComputerName - Terminate Process: $Process_query - Terminating..."
@@ -6927,156 +6571,153 @@ function Call-MainForm_pff
 			Add-RichTextBox $Process_query_return
 			Add-logs -text "$ComputerName - Terminate Process: $Process_query - Checking Status... "
 			Start-Sleep -Milliseconds 1000
-			$Process_query_return = Get-WmiObject Win32_Process -Filter "Name='$Process_query'"|Out-String
-			if (!($Process_query_return)){Add-Logs -Text "$ComputerName - $Process_query  has been terminated"}
+			$Process_query_return = Get-WmiObject Win32_Process -Filter "Name='$Process_query'" | Out-String
+			if (!($Process_query_return)) { Add-Logs -Text "$ComputerName - $Process_query  has been terminated" }
 			Add-logs -text "$ComputerName - Terminate Process: $Process_query - Terminated "
 		}#end IF
-		
+
 		#RemoteHost
 		else {
-			if ($intAnswer -eq 6){
+			if ($intAnswer -eq 6) {
 				Add-logs -text "$ComputerName - Terminate Process: $Process_query - Terminating..."
 				$Process_query_return = (Get-WmiObject Win32_Process -Filter "Name='$Process_query'").Terminate() | Out-String
 				#$Process_query_return.Terminate()
 				Add-RichTextBox $Process_query_return
 				Add-logs -text "$ComputerName - Terminate Process: $Process_query - Checking Status... "
 				Start-Sleep -Milliseconds 1000
-				$Process_query_return=Get-WmiObject Win32_Process -computername $ComputerName -Filter "Name='$Process_query'"|Out-String
-				if (!($Process_query_return)){Add-Logs -Text "$ComputerName - Terminate Process: $Process_query - Terminated "}
+				$Process_query_return = Get-WmiObject Win32_Process -ComputerName $ComputerName -Filter "Name='$Process_query'" | Out-String
+				if (!($Process_query_return)) { Add-Logs -Text "$ComputerName - Terminate Process: $Process_query - Terminated " }
 				#Add-logs -text "$ComputerName - Terminate Process: $Process_query - Terminated "
 			}#end IF
 		}#end ELSE
 	}
-	
-	
-	$button_StartupCommand_Click={
+
+	$button_StartupCommand_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Startup Commands"
-		$result = Get-WmiObject Win32_StartupCommand –ComputerName $ComputerName |Sort-Object Caption |Format-Table __Server,Caption,Command,User -auto | out-string -Width $richtextbox_output.Width
+		$result = Get-WmiObject Win32_StartupCommand –ComputerName $ComputerName | Sort-Object Caption | Format-Table __Server, Caption, Command, User -auto | Out-String -Width $richtextbox_output.Width
 		Add-richtextbox $result
 		Add-Logs -text "$ComputerName - Startup Commands - Done."
 	}
-	
-	$button_ConnectivityTesting_Click={
+
+	$button_ConnectivityTesting_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Connectivity Testing..."
 		$result = Test-Server -computername $ComputerName | Out-String
 		Add-richtextbox "$result`n"
 	}
-	$button_Check_Click={
+	$button_Check_Click = {
 		#Disable the button
 		$button_Check.Enabled = $false
-		
+
 		#Get the current computer in txt box
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Check Connectivity and Basic Properties"
 		# Test Connection
 		if (Test-Connection $ComputerName -Count 1 -Quiet) {
-			$label_PingStatus.Text = "OK";$label_PingStatus.ForeColor = "green"
-	
+			$label_PingStatus.Text = "OK"; $label_PingStatus.ForeColor = "green"
+
 			# Test Permissions
-			if (Test-Path "\\$ComputerName\c$"){
-				$label_PermissionStatus.Text = "OK";$label_PermissionStatus.ForeColor = "green"
-				
+			if (Test-Path "\\$ComputerName\c$") {
+				$label_PermissionStatus.Text = "OK"; $label_PermissionStatus.ForeColor = "green"
+
 				# Test PSRemoting
-				if (Test-PSRemoting -computername $ComputerName){$label_PSRemotingStatus.Text = "OPEN";$label_PSRemotingStatus.ForeColor = "green"}	
-				else{$label_PSRemotingStatus.Text = "CLOSED";$label_PSRemotingStatus.ForeColor = "red"}
-				
+				if (Test-PSRemoting -computername $ComputerName) { $label_PSRemotingStatus.Text = "OPEN"; $label_PSRemotingStatus.ForeColor = "green" }
+				else { $label_PSRemotingStatus.Text = "CLOSED"; $label_PSRemotingStatus.ForeColor = "red" }
+
 				# Test RDP
-				if (Test-Port -tcp 3389 -computername $ComputerName ){$label_RDPStatus.Text = "OPEN";$label_RDPStatus.ForeColor = "green"}
-				else{$label_RDPStatus.Text = "CLOSED";$label_RDPStatus.ForeColor = "red"}
-				
+				if (Test-Port -tcp 3389 -computername $ComputerName ) { $label_RDPStatus.Text = "OPEN"; $label_RDPStatus.ForeColor = "green" }
+				else { $label_RDPStatus.Text = "CLOSED"; $label_RDPStatus.ForeColor = "red" }
+
 				# Get the OS
-				 $OSWin32_OS = Get-WmiObject -Query "SELECT * FROM Win32_OperatingSystem" -ComputerName $ComputerName
-				 $OSCaption = ($OSWin32_OS|Select-Object caption).Caption
-				 $OSVersion = $OSWin32_OS.Version
+				$OSWin32_OS = Get-WmiObject -Query "SELECT * FROM Win32_OperatingSystem" -ComputerName $ComputerName
+				$OSCaption = ($OSWin32_OS | Select-Object caption).Caption
+				$OSVersion = $OSWin32_OS.Version
 				#2003/xp+
-				 $OSOther = $OSWin32_OS.OtherTypeDescription
-				 $OSSP = $OSWin32_OS.CSDVersion
+				$OSOther = $OSWin32_OS.OtherTypeDescription
+				$OSSP = $OSWin32_OS.CSDVersion
 				#2008/win7+
-				 $OSArchi = $OSWin32_OS.OSArchitecture
-				
+				$OSArchi = $OSWin32_OS.OSArchitecture
+
 				$OSFullCaption = "$OSCaption $OSOther $OSArchi $OSSP"
-				if ($OSFullCaption -contains "64"){$OSFullCaption = "$OSCaption $OSOther x86 $OSSP"}
-				
-				$label_OSStatus.Text = $OSFullCaption.Replace('  ',' ')
+				if ($OSFullCaption -contains "64") { $OSFullCaption = "$OSCaption $OSOther x86 $OSSP" }
+
+				$label_OSStatus.Text = $OSFullCaption.Replace('  ', ' ')
 				$label_OSStatus.ForeColor = "blue"
-				
+
 				# Get the uptime
 				#$label_UptimeStatus.Text = $(Get-Uptime -ComputerName $ComputerName);$label_UptimeStatus.ForeColor = "blue"
 				$LBTime = $OSWin32_OS.ConvertToDateTime($OSWin32_OS.Lastbootuptime)
-				[TimeSpan]$uptime = New-TimeSpan $LBTime $(get-date)
+				[TimeSpan]$uptime = New-TimeSpan $LBTime $(Get-Date)
 				$label_UptimeStatus.Text = "$($uptime.days) Days $($uptime.hours) Hours $($uptime.minutes) Minutes $($uptime.seconds) Seconds"
-				
-				
+
 			}#end if (Test-Path "\\$ComputerName\c$")
-			else {$label_PermissionStatus.Text = "FAIL";$label_PermissionStatus.ForeColor = "red"}
+			else { $label_PermissionStatus.Text = "FAIL"; $label_PermissionStatus.ForeColor = "red" }
 		}#end if (Test-Connection $ComputerName -Count 1 -Quiet)
-		else {$label_PingStatus.Text = "FAIL";$label_PingStatus.ForeColor = "red"}
-	$button_Check.Enabled = $true
+		else { $label_PingStatus.Text = "FAIL"; $label_PingStatus.ForeColor = "red" }
+		$button_Check.Enabled = $true
 	}
-	$button_psexec_Click={
+	$button_psexec_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - PSEXEC (Terminal)"
-		if(Test-Path "$ToolsFolder\psexec.exe"){
+		if (Test-Path "$ToolsFolder\psexec.exe") {
 			$argument = "/k $ToolsFolder\psexec.exe \\$ComputerName cmd.exe"
 			Start-Process cmd.exe $argument
 		}
-		else {$button_psexec.ForeColor = 'Red'}
+		else { $button_psexec.ForeColor = 'Red' }
 	}
-	
-	$button_PAExec_Click={
+
+	$button_PAExec_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - PAEXEC (Terminal)"
 		$argument = "/k $ToolsFolder\paexec.exe \\$ComputerName -s cmd.exe"
 		Start-Process cmd.exe $argument
 	}
-	$button_GPupdate_Click={
+	$button_GPupdate_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - GPUpdate (Remotly via WMI)"
 		$result = Invoke-GPUpdate -ComputerName $ComputerName
-		if ($result -ne $null)
-		{
-			if ($result.ReturnValue -eq 0){
+		if ($result -ne $null) {
+			if ($result.ReturnValue -eq 0) {
 				Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Group Policy Update" -Prompt "Gpupdate ran successfully!" -Icon "Information"
-				Add-RichTextBox $($result|Out-String)
+				Add-RichTextBox $($result | Out-String)
 			}
 		}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Group Policy Update" -Prompt "Gpupdate does not seem to work! Are you in a Domain ?" -Icon "Exclamation"}
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Group Policy Update" -Prompt "Gpupdate does not seem to work! Are you in a Domain ?" -Icon "Exclamation" }
 	}
-	
-	$button_Applications_Click={
+
+	$button_Applications_Click = {
 		Get-ComputerTxtBox
-		$result = Get-InstalledSoftware -ComputerName $ComputerName |Format-Table * -AutoSize| Out-String -Width $richtextbox_output.Width
+		$result = Get-InstalledSoftware -ComputerName $ComputerName | Format-Table * -AutoSize | Out-String -Width $richtextbox_output.Width
 		Add-Logs -text "$ComputerName - Installed Softwares List"
 		Add-RichTextBox $result
 	}
-	
-	$ToolStripMenuItem_netstatsListening_Click={
+
+	$ToolStripMenuItem_netstatsListening_Click = {
 		$this.Enabled = $False
 		Add-logs -text "$env:ComputerName - Netstat"
 		$resultNetstat = Get-NetStat | Format-Table -AutoSize | Out-String
 		Add-RichTextBox $resultNetstat
 	}
-	
-	$ToolStripMenuItem_WMIExplorer_Click={
+
+	$ToolStripMenuItem_WMIExplorer_Click = {
 		Add-logs -text "Scripts - WMIExplorer.ps1 By www.ThePowerShellGuy.com (Marc van Orsouw)"
 		& "$ScriptsFolder\WMIExplorer.ps1"
 	}
-	
-	$button_DriverQuery_Click={
+
+	$button_DriverQuery_Click = {
 		$button_DriverQuery.Enabled = $False
 		Get-ComputerTxtBox
-		$DriverQuery_command="cmd.exe"
+		$DriverQuery_command = "cmd.exe"
 		$DriverQuery_arguments = "/k driverquery /s $ComputerName"
 		Start-Process $DriverQuery_command $DriverQuery_arguments
 		$button_DriverQuery.Enabled = $true
 	}
-	
-	$button_PsRemoting_Click={
+
+	$button_PsRemoting_Click = {
 		Get-ComputerTXTBOX
 		Add-logs -text "$ComputerName - Open a PowerShell Remoting Session"
-		if (Test-PSRemoting -ComputerName $ComputerName){
+		if (Test-PSRemoting -ComputerName $ComputerName) {
 			Add-logs -text "$ComputerName - Powershell Remote Session"
 			Start-Process powershell.exe -ArgumentList "-noexit -command Enter-PSSession -ComputerName $ComputerName"
 		}
@@ -7085,19 +6726,19 @@ function Call-MainForm_pff
 			Show-MsgBox -Title "PSRemoting" -BoxType "OKOnly" -Icon "Exclamation" -Prompt "PSRemoting does not seem to be enabled"
 		}
 	}
-	$button_MsInfo32_Click={
+	$button_MsInfo32_Click = {
 		Get-ComputerTXTBOX
 		Add-Logs "$ComputerName - System Information (MSinfo32.exe)"
 		$cmd = "$env:programfiles\Common Files\Microsoft Shared\MSInfo\msinfo32.exe"
 		$param = "/computer $ComputerName"
 		Start-Process $cmd $param
 	}
-	
-	$button_Qwinsta_Click={
+
+	$button_Qwinsta_Click = {
 		$button_Qwinsta.Enabled = $false
 		Get-ComputerTXTBOX
-		
-		if ($current_OS_caption -notlike "*64*"){
+
+		if ($current_OS_caption -notlike "*64*") {
 			Add-Logs -text "$ComputerName - QWINSTA (Query Terminal Sessions) - 32 bits"
 			$Qwinsta_cmd = "cmd"
 			$Qwinsta_argument = "/k qwinsta /server:$computername"
@@ -7111,15 +6752,15 @@ function Call-MainForm_pff
 		}
 		$button_Qwinsta.Enabled = $true
 	}
-	
-	$button_Rwinsta_Click={
+
+	$button_Rwinsta_Click = {
 		$button_Rwinsta.Enabled = $false
 		Get-ComputerTXTBOX
 		Add-Logs -text "$ComputerName - RWINSTA (Reset Terminal Sessions)"
-		if ($current_OS_caption -notlike "*64*"){
+		if ($current_OS_caption -notlike "*64*") {
 			Add-Logs -text "$ComputerName - RWINSTA (Reset Terminal Sessions) - 32 bits"
 			$Rwinsta_ID = Show-Inputbox -message "Enter The Session ID to kill" -title "$ComputerName - Rwinsta (Reset Terminal Session)"
-			if ($Rwinsta_ID -ne ""){
+			if ($Rwinsta_ID -ne "") {
 				$Rwinsta_cmd = "cmd"
 				$Rwinsta_argument = "/k $env:SystemRoot\System32\rwinsta $Rwinsta_ID /server:$computername"
 				Start-Process $Rwinsta_cmd $Rwinsta_argument
@@ -7129,125 +6770,124 @@ function Call-MainForm_pff
 			Add-Logs -text "$ComputerName - RWINSTA (Reset Terminal Sessions) - 64 bits"
 			$Rwinsta_cmd = "cmd"
 			$Rwinsta_ID = Show-Inputbox -message "Enter The Session ID to kill" -title "$ComputerName - Rwinsta (Reset Terminal Session)"
-			if ($Rwinsta_ID -ne ""){
+			if ($Rwinsta_ID -ne "") {
 				$Rwinsta_argument = "/k $env:SystemRoot\Sysnative\rwinsta $Rwinsta_ID /server:$computername"
 				Start-Process $Rwinsta_cmd $Rwinsta_argument
 			}
 		}
 		$button_Rwinsta.Enabled = $true
 	}
-	
-	$button_RebootHistory_Click={
+
+	$button_RebootHistory_Click = {
 		$button_RebootHistory.Enabled = $false
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Reboot History (Scanning Event Logs for ID 6009) - By BSonPosh.com"
-		start-sleep -s 1
-		$job = get-reboottime -ComputerName $ComputerName |Out-string
+		Start-Sleep -s 1
+		$job = get-reboottime -ComputerName $ComputerName | Out-String
 		Add-Richtextbox $job
 		$button_RebootHistory.Enabled = $true
 	}
-	
-	$button_USBDevices_Click={
+
+	$button_USBDevices_Click = {
 		$button_USBDevices.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - USB Devices"
-		$result = Get-USB -computerName $ComputerName|
-			Select-Object SystemName,Manufacturer,Name|
-			Sort-Object Manufacturer|
-			Format-Table -AutoSize|Out-String
+		$result = Get-USB -computerName $ComputerName |
+			Select-Object SystemName, Manufacturer, Name |
+				Sort-Object Manufacturer |
+					Format-Table -AutoSize | Out-String
 		Add-RichTextBox $result
 		$button_USBDevices.Enabled = $true
 	}
-	
-	$button_RDPEnable_Click={
+
+	$button_RDPEnable_Click = {
 		$button_RDPEnable.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - Enable RDP"
 		$result = Set-RDPEnable -ComputerName $ComputerName
 		$button_RDPEnable.Enabled = $true
 	}
-	
-	$button_RDPDisable_Click={
+
+	$button_RDPDisable_Click = {
 		$button_RDPDisable.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs "$ComputerName - Disable RDP"
 		Set-RDPDisable -ComputerName $ComputerName
 		$button_RDPDisable.Enabled = $true
 	}
-	
-	$button_HotFix_Click={
+
+	$button_HotFix_Click = {
 		$button_HotFix.Enabled = $false
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Get the Windows Updates Installed"
-		$result = Get-HotFix -ComputerName $ComputerName | Sort-Object InstalledOn| Format-Table __SERVER, Description, HotFixID, InstalledBy, InstalledOn,Caption -AutoSize | Out-String -Width $richtextbox_output.Width
+		$result = Get-HotFix -ComputerName $ComputerName | Sort-Object InstalledOn | Format-Table __SERVER, Description, HotFixID, InstalledBy, InstalledOn, Caption -AutoSize | Out-String -Width $richtextbox_output.Width
 		Add-RichTextBox $result
 		$button_HotFix.Enabled = $true
 	}
-	
-	$button_Printers_Click={
+
+	$button_Printers_Click = {
 		$button_Printers.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Printers"
-		$result = Get-WmiObject Win32_Printer -ComputerName $ComputerName  | Format-table SystemName,Name,Comment,PortName,Location,DriverName -AutoSize | Out-String
-		if ($result -ne $null){
-			Add-RichTextBox $result}
-		else {Add-RichTextBox "$ComputerName - No Printer detected"}
+		$result = Get-WmiObject Win32_Printer -ComputerName $ComputerName | Format-Table SystemName, Name, Comment, PortName, Location, DriverName -AutoSize | Out-String
+		if ($result -ne $null) {
+			Add-RichTextBox $result
+  }
+		else { Add-RichTextBox "$ComputerName - No Printer detected" }
 		$button_Printers.Enabled = $true
 	}
-	
-	$button_Restart_Click={
+
+	$button_Restart_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Restart Computer"
 		#$result = Restart-Computer -ComputerName $ComputerName -Force -Confirm
 		$Confirmation = Show-MsgBox -Prompt "You want to restart $ComputerName, Are you sure ?" -Title "$ComputerName - Restart Computer" -Icon Exclamation -BoxType YesNo
 		#$result = (Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName).Reboot()
-		if ($Confirmation -eq "YES")
-		{ 
+		if ($Confirmation -eq "YES") {
 			#(Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName).Reboot()
 			Restart-Computer -ComputerName $ComputerName -Force
 			Show-MsgBox -Prompt "$ComputerName - Restart Initialized" -Title "$ComputerName - Restart Computer" -Icon Information -BoxType OKOnly
 		}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Restart" -Prompt "$ComputerName - Restart Cancelled" -Icon "Information"}
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Restart" -Prompt "$ComputerName - Restart Cancelled" -Icon "Information" }
 	}
-	
-	$button_Shutdown_Click={
+
+	$button_Shutdown_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Shutdown Computer"
 		#$result = Stop-Computer -ComputerName $ComputerName -Force -Confirm
 		$Confirmation = Show-MsgBox -Prompt "You want to shutdown $ComputerName, Are you sure ?" -Title "$ComputerName - Shutdown Computer" -Icon Exclamation -BoxType YesNo
-		if ($Confirmation -eq "YES")
-		{ 
+		if ($Confirmation -eq "YES") {
 			#(Get-WmiObject Win32_OperatingSystem -ComputerName $ComputerName).shutdown()
 			Stop-Computer -ComputerName $ComputerName -Force
 			Show-MsgBox -Prompt "$ComputerName - Shutdown Initialized" -Title "$ComputerName - Shutdown Computer" -Icon Information -BoxType OKOnly
 		}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Shutdown" -Prompt "$ComputerName - Shutdown Cancelled" -Icon "Information"}
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Shutdown" -Prompt "$ComputerName - Shutdown Cancelled" -Icon "Information" }
 	}
-	
-	$buttonCommandLine_Click={
+
+	$buttonCommandLine_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Get the CommandLine Argument for each process"
 		#Get-WmiObject Win32_Process -Filter "Name like '%powershell%'" | select-Object CommandLine
-		$result = Get-WmiObject Win32_Process -ComputerName $ComputerName | select-Object Name,ProcessID,CommandLine| Format-Table -AutoSize |Out-String -Width $richtextbox_output.Width
+		$result = Get-WmiObject Win32_Process -ComputerName $ComputerName | Select-Object Name, ProcessID, CommandLine | Format-Table -AutoSize | Out-String -Width $richtextbox_output.Width
 		Add-RichTextBox $result
 	}
-	
-	$button_ComputerDescriptionQuery_Click={
+
+	$button_ComputerDescriptionQuery_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Get the Computer Description"
 		$result = Get-ComputerComment -ComputerName $ComputerName
 		Add-RichTextBox $result
 	}
-	
-	$button_ComputerDescriptionChange_Click={
+
+	$button_ComputerDescriptionChange_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Set the Computer Description"
 		$Description = Show-Inputbox -message "Enter a Computer Description" -title "$ComputerName" -default "<Role> - <Owner> - <Ticket#>"
-		if ($Description -ne "" ){
+		if ($Description -ne "" ) {
 			$result = Set-ComputerComment -ComputerName $ComputerName -Description $Description
 		}
 	}
-	
+
 	#$button_ADComputerDescriptionSet_Click={
 	#	Get-ComputerTxtBox
 	#	Add-Logs -text "$ComputerName - Set the Active Directory Computer Description"
@@ -7271,7 +6911,7 @@ function Call-MainForm_pff
 	#		  $Computer = [ADSI]"LDAP://$strDN"
 	#		  $Computer.description = $strDesc
 	#		  $Computer.SetInfo()
-	#		}	
+	#		}
 	#	}
 	#}
 	#
@@ -7281,88 +6921,87 @@ function Call-MainForm_pff
 	#	$result = Get-ComputerAdDescription -ComputerName $ComputerName | Out-String
 	#	Add-RichTextBox $result
 	#}
-	
-	
-	$buttonC_Click={
+
+	$buttonC_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Open C$ Drive"
 		$PathToCDrive = "\\$ComputerName\c$"
 		Explorer.exe $PathToCDrive
 	}
-	
-	$buttonRemoteAssistance_Click={
+
+	$buttonRemoteAssistance_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Remote Assistance"
 		MSRA.exe /OfferRA $ComputerName
 	}
-	$buttonWindowsUpdateLog_Click={
+	$buttonWindowsUpdateLog_Click = {
 		$buttonWindowsUpdateLog.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Windows Update Logs (WindowsUpdate.log)"
-		$SystemDriveLetter = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).systemdrive).substring(0,1)
+		$SystemDriveLetter = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).systemdrive).substring(0, 1)
 		$SystemDriveFolder = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).WindowsDirectory).substring(3)
-		$pathToWindowsUpdateLog= "\\$computername\$SystemDriveLetter$\$SystemDriveFolder\WindowsUpdate.log"
+		$pathToWindowsUpdateLog = "\\$computername\$SystemDriveLetter$\$SystemDriveFolder\WindowsUpdate.log"
 		if (Test-Path $pathToWindowsUpdateLog)
-			{Invoke-Item $pathToWindowsUpdateLog}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Windows Update Logs (WindowsUpdate.log)" -Prompt "$ComputerName - Can't find the WindowsUpdate.log file `rPath:$pathToWindowsUpdateLog" -Icon "Exclamation"}
+		{ Invoke-Item $pathToWindowsUpdateLog }
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - Windows Update Logs (WindowsUpdate.log)" -Prompt "$ComputerName - Can't find the WindowsUpdate.log file `rPath:$pathToWindowsUpdateLog" -Icon "Exclamation" }
 		$buttonWindowsUpdateLog.Enabled = $true
 	}
-	
-	$buttonReportingEventslog_Click={
+
+	$buttonReportingEventslog_Click = {
 		$buttonReportingEventslog.Enabled = $false
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - WSUS Report (ReportingEvents.log)"
-		$SystemDriveLetter = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).systemdrive).substring(0,1)
+		$SystemDriveLetter = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).systemdrive).substring(0, 1)
 		$SystemDriveFolder = ((Get-WmiObject -Class Win32_OperatingSystem -ComputerName $ComputerName).WindowsDirectory).substring(3)
-		$pathToWSUSReportLog= "\\$computername\$SystemDriveLetter$\$SystemDriveFolder\SoftwareDistribution\ReportingEvents.log"
+		$pathToWSUSReportLog = "\\$computername\$SystemDriveLetter$\$SystemDriveFolder\SoftwareDistribution\ReportingEvents.log"
 		if (Test-Path $pathToWSUSReportLog)
-			{Invoke-Item $pathToWSUSReportLog}
-		else {Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - WSUS Report (ReportingEvents.log)" -Prompt "$ComputerName - Can't find the ReportingEvents.log file `rPath:$pathToWSUSReportLog" -Icon "Exclamation"}
+		{ Invoke-Item $pathToWSUSReportLog }
+		else { Show-MsgBox -BoxType "OKOnly" -Title "$ComputerName - WSUS Report (ReportingEvents.log)" -Prompt "$ComputerName - Can't find the ReportingEvents.log file `rPath:$pathToWSUSReportLog" -Icon "Exclamation" }
 		$buttonReportingEventslog.Enabled = $true
 	}
-	
-	$buttonCommandLineGridView_Click={
+
+	$buttonCommandLineGridView_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Get the CommandLine Argument for each process - Grid View"
 		#Get-WmiObject Win32_Process -Filter "Name like '%powershell%'" | select-Object CommandLine
-		Get-WmiObject Win32_Process -ComputerName $ComputerName | select-Object Name,ProcessID,CommandLine| Out-GridView
+		Get-WmiObject Win32_Process -ComputerName $ComputerName | Select-Object Name, ProcessID, CommandLine | Out-GridView
 	}
-	
-	$buttonServices_Click={
+
+	$buttonServices_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Services MMC (services.msc /computer:$ComputerName)"
 		$command = "services.msc"
 		$arguments = "/computer:$computername"
-		Start-Process $command $arguments 
+		Start-Process $command $arguments
 	}
-	
-	$buttonEventVwr_Click={
+
+	$buttonEventVwr_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Event Viewer MMC (eventvwr $Computername)"
-		$command="eventvwr"
+		$command = "eventvwr"
 		$arguments = "$ComputerName"
 		Start-Process $command $arguments
 	}
-	
-	$buttonShares_Click={
+
+	$buttonShares_Click = {
 		Get-ComputerTxtBox
 		Add-logs -text "$ComputerName - Shared Folders MMC (fsmgmt.msc /computer:$ComputerName"
-		$SharesCmd="fsmgmt.msc"
-		$SharesParam="/computer:$ComputerName"
+		$SharesCmd = "fsmgmt.msc"
+		$SharesParam = "/computer:$ComputerName"
 		Start-Process $SharesCmd $SharesParam
 	}
-	
-	$buttonSendCommand_Click={
+
+	$buttonSendCommand_Click = {
 		Get-ComputerTxtBox
 		Add-Logs -text "$ComputerName - Run a Remote Command"
 		$RemoteCommand = Show-Inputbox -message "Enter a command to run" -title "$Computername - Run-RemoteCMD" -default "ipconfig /all"
-		if ($RemoteCommand -ne ""){
-			Run-RemoteCMD -ComputerName $ComputerName -Command $RemoteCommand	
+		if ($RemoteCommand -ne "") {
+			Run-RemoteCMD -ComputerName $ComputerName -Command $RemoteCommand
 			Add-Logs -text "$ComputerName - Remote Command Sent!"
 		}
 	}
-	
-	$button_SystemInfoexe_Click={
+
+	$button_SystemInfoexe_Click = {
 		$button_SystemInfoexe.Enabled = $false
 		Get-ComputerTxtBox 		#Get the current ComputerName in the TextBox
 		$SystemInfo_cmd_command	= "cmd" #Declare Main Command
@@ -7371,25 +7010,25 @@ function Call-MainForm_pff
 		Start-Process $SystemInfo_cmd_command $SystemInfo_cmd_Args -WorkingDirectory "c:\"
 		$button_SystemInfoexe.Enabled = $true
 	}
-	
-	$textbox_computername_KeyPress=[System.Windows.Forms.KeyPressEventHandler]{
-	#Event Argument: $_ = [System.Windows.Forms.KeyPressEventArgs]
-		If ($_.KeyChar -eq 13){
+
+	$textbox_computername_KeyPress = [System.Windows.Forms.KeyPressEventHandler] {
+		#Event Argument: $_ = [System.Windows.Forms.KeyPressEventArgs]
+		If ($_.KeyChar -eq 13) {
 	 	$button_ping.PerformClick()
-		$richtextbox_output.Focus()
+			$richtextbox_output.Focus()
 		}
 	}	# --End User Generated Script--
 	#----------------------------------------------
 	#region Generated Events
 	#----------------------------------------------
-	
-	$Form_StateCorrection_Load=
+
+	$Form_StateCorrection_Load =
 	{
 		#Correct the initial state of the form to prevent the .Net maximized form issue
 		$form_MainForm.WindowState = $InitialFormWindowState
 	}
-	
-	$Form_StoreValues_Closing=
+
+	$Form_StoreValues_Closing =
 	{
 		#Store the control values
 		$script:MainForm_richtextbox_output = $richtextbox_output.Text
@@ -7404,12 +7043,10 @@ function Call-MainForm_pff
 		$script:MainForm_richtextbox_Logs = $richtextbox_Logs.Text
 	}
 
-	
-	$Form_Cleanup_FormClosed=
+	$Form_Cleanup_FormClosed =
 	{
 		#Remove all event handlers from the controls
-		try
-		{
+		try {
 			$richtextbox_output.remove_TextChanged($richtextbox_output_TextChanged)
 			$button_formExit.remove_Click($button_formExit_Click)
 			$button_outputClear.remove_Click($button_outputClear_Click)
@@ -13037,7 +12674,7 @@ RHNivXBqBgD70EG6KrB0jQAAAABJRU5ErkJggg==')
 	#
 	$Formatter_binaryFomatter = New-Object System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
 	#region Binary Data
-	$System_IO_MemoryStream = New-Object System.IO.MemoryStream (,[byte[]][System.Convert]::FromBase64String('AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+	$System_IO_MemoryStream = New-Object System.IO.MemoryStream (, [byte[]][System.Convert]::FromBase64String('AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
 MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
 ACZTeXN0ZW0uV2luZG93cy5Gb3Jtcy5JbWFnZUxpc3RTdHJlYW1lcgEAAAAERGF0YQcCAgAAAAkD
 AAAADwMAAAB2CgAAAk1TRnQBSQFMAgEBCAEAAcgBAAHIAQABEAEAARABAAT/ASEBAAj/AUIBTQE2
